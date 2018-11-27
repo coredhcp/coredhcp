@@ -1,0 +1,9 @@
+server6:
+    listen: '[::]:547'
+    plugins:
+        - server_id: LL 00:de:ad:be:ef:00
+        - file: "leases.txt"
+        # - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
+
+#server4:
+#    listen: '127.0.0.1:67'
