@@ -45,7 +45,7 @@ func main() {
 		LinkLayerAddr: mac,
 	}
 
-	conv, err := c.Exchange("lo", nil, dhcpv6.WithClientID(duid))
+	conv, err := c.Exchange("lo", dhcpv6.WithClientID(duid))
 	for _, p := range conv {
 		log.Print(p.Summary())
 	}

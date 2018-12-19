@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"bitbucket.org/insomniacslk/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/handler"
 )
 
 // Plugin represents a plugin object.

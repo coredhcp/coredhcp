@@ -7,8 +7,8 @@ import (
 	"net"
 	"strings"
 
-	"bitbucket.org/insomniacslk/coredhcp/handler"
-	"bitbucket.org/insomniacslk/coredhcp/plugins"
+	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/iana"
