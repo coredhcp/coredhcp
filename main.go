@@ -6,11 +6,11 @@ import (
 	"net"
 	"time"
 
-	"bitbucket.org/insomniacslk/coredhcp/config"
-	"bitbucket.org/insomniacslk/coredhcp/handler"
-	"bitbucket.org/insomniacslk/coredhcp/plugins"
-	_ "bitbucket.org/insomniacslk/coredhcp/plugins/file"
-	_ "bitbucket.org/insomniacslk/coredhcp/plugins/server_id"
+	"github.com/coredhcp/coredhcp/config"
+	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/plugins"
+	_ "github.com/coredhcp/coredhcp/plugins/file"
+	_ "github.com/coredhcp/coredhcp/plugins/server_id"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
