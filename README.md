@@ -70,3 +70,8 @@ $ sudo ./client
   ]
 ...
 ```
+
+# Authors
+
+* [Andrea Barberio](https://github.com/insomniacslk)
+* [Pablo Mazzini](https://github.com/pmazzini)
