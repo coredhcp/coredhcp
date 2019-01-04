@@ -26,7 +26,7 @@ server6:
 #    listen: '127.0.0.1:67'
 ```
 
-See also [config.yml.example](config.yml.example).
+See also [config.yml.example](cmds/coredhcp/config.yml.example).
 
 ## Build and run
 
