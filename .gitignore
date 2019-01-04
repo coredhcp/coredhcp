@@ -1,4 +1,4 @@
 leases.txt
 coredhcp
-client/client
+cmds/client/client
 config.yml
