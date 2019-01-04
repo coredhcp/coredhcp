@@ -30,8 +30,12 @@ See also [config.yml.example](config.yml.example).
 
 ## Build and run
 
-Once you have a working configuration in `config.yml`, you can build and run the server:
+The server is located under [cmds/coredhcp/](cmds/coredhcp/), so enter that
+directory first.
+
+Once you have a working configuration in `config.yml` (see [config.yml.example](cmds/coredhcp/config.yml.example)), you can build and run the server:
 ```
+$ cd cmds/coredhcp
 $ go build
 $ sudo ./coredhcp
 2018/12/19 14:27:17 Registering plugin "file"
@@ -53,9 +57,10 @@ $ sudo ./coredhcp
 ...
 ```
 
-Then try it with the local test client:
+Then try it with the local test client, that is located under
+[cmds/client/](cmds/client):
 ```
-$ cd client
+$ cd cmds/client
 $ go build
 $ sudo ./client
 2018/12/19 14:29:05 &{ReadTimeout:3s WriteTimeout:3s LocalAddr:[::1]:546 RemoteAddr:[::1]:547}

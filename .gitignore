@@ -1,4 +1,5 @@
-leases.txt
-coredhcp
-client/client
-config.yml
+.*.swp
+cmds/coredhcp/leases.txt
+cmds/coredhcp/config.yml
+cmds/coredhcp/coredhcp
+cmds/client/client
