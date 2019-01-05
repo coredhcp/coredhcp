@@ -6,12 +6,14 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net"
 
+	"github.com/coredhcp/coredhcp/logger"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/iana"
 )
+
+var log = logger.GetLogger()
 
 func main() {
 	flag.Parse()

@@ -5,15 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"strings"
 
 	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
+
+var log = logger.GetLogger()
 
 func init() {
 	plugins.RegisterPlugin("file", setupFile6, setupFile4)

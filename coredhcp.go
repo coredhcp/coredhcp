@@ -2,15 +2,17 @@ package coredhcp
 
 import (
 	"errors"
-	"log"
 	"net"
 
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
+
+var log = logger.GetLogger()
 
 // Server is a CoreDHCP server structure that holds information about
 // DHCPv6 and DHCPv4 servers, and their respective handlers.
