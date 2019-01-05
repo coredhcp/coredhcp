@@ -38,22 +38,22 @@ Once you have a working configuration in `config.yml` (see [config.yml.example](
 $ cd cmds/coredhcp
 $ go build
 $ sudo ./coredhcp
-2018/12/19 14:27:17 Registering plugin "file"
-2018/12/19 14:27:17 Registering plugin "server_id"
-2018/12/19 14:27:17 Loading configuration
-2018/12/19 14:27:17 Found plugin: `server_id` with 2 args, `[LL 00:de:ad:be:ef:00]`
-2018/12/19 14:27:17 Found plugin: `file` with 1 args, `[leases.txt]`
-2018/12/19 14:27:17 Loading plugins...
-2018/12/19 14:27:17 Loading plugin `server_id`
-2018/12/19 14:27:17 plugins/server_id: loading `server_id` plugin
-2018/12/19 14:27:17 plugins/server_id: using ll 00:de:ad:be:ef:00
-2018/12/19 14:27:17 Loading plugin `file`
-2018/12/19 14:27:17 plugins/file: reading leases from leases.txt
-2018/12/19 14:27:17 plugins/file: loaded 1 leases from leases.txt
-2018/12/19 14:27:17 Starting DHCPv6 listener on [::]:547
-2018/12/19 14:27:17 Waiting
-2018/12/19 14:27:17 Server listening on [::]:547
-2018/12/19 14:27:17 Ready to handle requests
+INFO[2019-01-05T22:28:07Z] Registering plugin "file"
+INFO[2019-01-05T22:28:07Z] Registering plugin "server_id"
+INFO[2019-01-05T22:28:07Z] Loading configuration
+INFO[2019-01-05T22:28:07Z] Found plugin: `server_id` with 2 args, `[LL 00:de:ad:be:ef:00]`
+INFO[2019-01-05T22:28:07Z] Found plugin: `file` with 1 args, `[leases.txt]`
+INFO[2019-01-05T22:28:07Z] Loading plugins...
+INFO[2019-01-05T22:28:07Z] Loading plugin `server_id`
+INFO[2019-01-05T22:28:07Z] plugins/server_id: loading `server_id` plugin
+INFO[2019-01-05T22:28:07Z] plugins/server_id: using ll 00:de:ad:be:ef:00
+INFO[2019-01-05T22:28:07Z] Loading plugin `file`
+INFO[2019-01-05T22:28:07Z] plugins/file: reading leases from leases.txt
+INFO[2019-01-05T22:28:07Z] plugins/file: loaded 1 leases from leases.txt
+INFO[2019-01-05T22:28:07Z] Starting DHCPv6 listener on [::]:547
+INFO[2019-01-05T22:28:07Z] Waiting
+2019/01/05 22:28:07 Server listening on [::]:547
+2019/01/05 22:28:07 Ready to handle requests
 ...
 ```
 
@@ -63,10 +63,10 @@ Then try it with the local test client, that is located under
 $ cd cmds/client
 $ go build
 $ sudo ./client
-2018/12/19 14:29:05 &{ReadTimeout:3s WriteTimeout:3s LocalAddr:[::1]:546 RemoteAddr:[::1]:547}
-2018/12/19 14:29:05 DHCPv6Message
+INFO[2019-01-05T22:29:21Z] &{ReadTimeout:3s WriteTimeout:3s LocalAddr:[::1]:546 RemoteAddr:[::1]:547}
+INFO[2019-01-05T22:29:21Z] DHCPv6Message
   messageType=SOLICIT
-  transactionid=0x6101f0
+  transactionid=0x6d30ff
   options=[
     OptClientId{cid=DUID{type=DUID-LLT hwtype=Ethernet hwaddr=00:11:22:33:44:55}}
     OptRequestedOption{options=[DNS Recursive Name Server, Domain Search List]}

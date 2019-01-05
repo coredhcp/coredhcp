@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
 	"time"
 
 	"github.com/coredhcp/coredhcp"
 	"github.com/coredhcp/coredhcp/config"
+	"github.com/coredhcp/coredhcp/logger"
 	_ "github.com/coredhcp/coredhcp/plugins/file"
 	_ "github.com/coredhcp/coredhcp/plugins/server_id"
 )
@@ -17,16 +17,17 @@ var (
 )
 
 func main() {
+	logger := logger.GetLogger()
 	config, err := config.Parse()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	server := coredhcp.NewServer(config)
 	if err := server.Start(); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	if err := server.Wait(); err != nil {
-		log.Print(err)
+		logger.Print(err)
 	}
 	time.Sleep(time.Second)
 }

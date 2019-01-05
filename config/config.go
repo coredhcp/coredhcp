@@ -2,14 +2,16 @@ package config
 
 import (
 	"errors"
-	"log"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/coredhcp/coredhcp/logger"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 )
+
+var log = logger.GetLogger()
 
 // Config holds the DHCPv6/v4 server configuration
 type Config struct {

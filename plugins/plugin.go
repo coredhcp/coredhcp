@@ -2,10 +2,12 @@ package plugins
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/logger"
 )
+
+var log = logger.GetLogger()
 
 // Plugin represents a plugin object.
 // Setup6 and Setup4 are the setup functions for DHCPv6 and DHCPv4 handlers
