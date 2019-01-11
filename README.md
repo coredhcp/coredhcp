@@ -76,6 +76,17 @@ INFO[2019-01-05T22:29:21Z] DHCPv6Message
 ...
 ```
 
+# How to write a plugin
+
+CoreDHCP is heavily based on plugins: even the core functionalities are
+implemented as plugins. Therefore, knowing how to write one is the key to add
+new features to CoreDHCP.
+
+The best way to learn is to read the comments and source code of the
+[example plugin](plugins/example/), which guides you through the implementation
+of a simple plugin that prints a packet every time it is received by the server.
+
+
 # Authors
 
 * [Andrea Barberio](https://github.com/insomniacslk)
