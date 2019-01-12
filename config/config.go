@@ -99,13 +99,10 @@ func parseV6Config(v *viper.Viper) (*ServerConfig, error) {
 	if pluginList == nil {
 		return nil, ConfigErrorFromString("dhcpv6: invalid plugins section, not a list")
 	}
-	if len(pluginList) == 0 {
-		return &sc, nil
-	}
-	for name, v := range pluginList {
+	for idx, v := range pluginList {
 		conf := cast.ToStringMap(v)
 		if conf == nil {
-			return nil, ConfigErrorFromString("dhcpv6: plugin `%s` is not a string map", name)
+			return nil, ConfigErrorFromString("dhcpv6: plugin #%d is not a string map", idx)
 		}
 		// make sure that only one item is specified, since it's a
 		// map name -> args

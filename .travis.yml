@@ -1,0 +1,24 @@
+language: go
+
+sudo: required
+
+go:
+  - "1.9"
+  - "1.10"
+  - "1.11"
+  - tip
+
+before_install:
+  - go get -t -v ./...
+
+before_script:
+  - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
+      sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6';
+    fi
+
+script:
+  - ./.travis/tests.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
