@@ -25,10 +25,10 @@ type Server struct {
 	errors    chan error
 }
 
-// LoadPlugins reads a Viper configuration and loads the plugins
-// as specified in the `plugins` section, in order. For a plugin to
-// be available, it must have been previously registered with
-// plugins.RegisterPlugin. This is normally done at plugin import.
+// LoadPlugins reads a Config object and loads the plugins as specified in the
+// `plugins` section, in order. For a plugin to be available, it must have been
+// previously registered with plugins.RegisterPlugin. This is normally done at
+// plugin import time.
 func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, error) {
 	log.Print("Loading plugins...")
 	loadedPlugins := make([]*plugins.Plugin, 0)
