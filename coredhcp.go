@@ -29,39 +29,71 @@ type Server struct {
 // `plugins` section, in order. For a plugin to be available, it must have been
 // previously registered with plugins.RegisterPlugin. This is normally done at
 // plugin import time.
-func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, error) {
+// This function returns the list of loaded v6 plugins, the list of loaded v4
+// plugins, and an error if any.
+func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, []*plugins.Plugin, error) {
 	log.Print("Loading plugins...")
-	loadedPlugins := make([]*plugins.Plugin, 0)
+	loadedPlugins6 := make([]*plugins.Plugin, 0)
+	loadedPlugins4 := make([]*plugins.Plugin, 0)
 
-	if conf.Server4 != nil {
-		return nil, errors.New("plugin loading for DHCPv4 not implemented yet")
+	if conf.Server6 == nil && conf.Server4 == nil {
+		return nil, nil, errors.New("no configuration found for either DHCPv6 or DHCPv4")
 	}
-	// load v6 plugins
-	if conf.Server6 == nil {
-		return nil, errors.New("no configuration found for DHCPv6 server")
-	}
+
 	// now load the plugins. We need to call its setup function with
 	// the arguments extracted above. The setup function is mapped in
 	// plugins.RegisteredPlugins .
-	for _, pluginConf := range conf.Server6.Plugins {
-		if plugin, ok := plugins.RegisteredPlugins[pluginConf.Name]; ok {
-			log.Printf("Loading plugin `%s`", pluginConf.Name)
-			h6, err := plugin.Setup6(pluginConf.Args...)
-			if err != nil {
-				return nil, err
+
+	// Load DHCPv6 plugins.
+	if conf.Server6 != nil {
+		for _, pluginConf := range conf.Server6.Plugins {
+			if plugin, ok := plugins.RegisteredPlugins[pluginConf.Name]; ok {
+				log.Printf("DHCPv6: loading plugin `%s`", pluginConf.Name)
+				if plugin.Setup6 == nil {
+					log.Warningf("DHCPv6: plugin `%s` has no setup function for DHCPv6", pluginConf.Name)
+					continue
+				}
+				h6, err := plugin.Setup6(pluginConf.Args...)
+				if err != nil {
+					return nil, nil, err
+				}
+				loadedPlugins6 = append(loadedPlugins6, plugin)
+				if h6 == nil {
+					return nil, nil, config.ConfigErrorFromString("no DHCPv6 handler for plugin %s", pluginConf.Name)
+				}
+				s.Handlers6 = append(s.Handlers6, h6)
+			} else {
+				return nil, nil, config.ConfigErrorFromString("DHCPv6: unknown plugin `%s`", pluginConf.Name)
 			}
-			loadedPlugins = append(loadedPlugins, plugin)
-			if h6 == nil {
-				return nil, config.ConfigErrorFromString("no DHCPv6 handler for plugin %s", pluginConf.Name)
+		}
+	}
+	// Load DHCPv4 plugins. Yes, duplicated code, there's not really much that
+	// can be deduplicated here.
+	if conf.Server4 != nil {
+		for _, pluginConf := range conf.Server4.Plugins {
+			if plugin, ok := plugins.RegisteredPlugins[pluginConf.Name]; ok {
+				log.Printf("DHCPv4: loading plugin `%s`", pluginConf.Name)
+				if plugin.Setup4 == nil {
+					log.Warningf("DHCPv4: plugin `%s` has no setup function for DHCPv4", pluginConf.Name)
+					continue
+				}
+				h4, err := plugin.Setup4(pluginConf.Args...)
+				if err != nil {
+					return nil, nil, err
+				}
+				loadedPlugins4 = append(loadedPlugins4, plugin)
+				if h4 == nil {
+					return nil, nil, config.ConfigErrorFromString("no DHCPv4 handler for plugin %s", pluginConf.Name)
+				}
+				s.Handlers4 = append(s.Handlers4, h4)
+				//s.Handlers4 = append(s.Handlers4, h4)
+			} else {
+				return nil, nil, config.ConfigErrorFromString("DHCPv4: unknown plugin `%s`", pluginConf.Name)
 			}
-			s.Handlers6 = append(s.Handlers6, h6)
-			//s.Handlers4 = append(s.Handlers4, h4)
-		} else {
-			return nil, config.ConfigErrorFromString("unknown plugin `%s`", pluginConf.Name)
 		}
 	}
 
-	return loadedPlugins, nil
+	return loadedPlugins6, loadedPlugins4, nil
 }
 
 // MainHandler6 runs for every received DHCPv6 packet. It will run every
@@ -95,7 +127,7 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, d *dhcpv4.DHCP
 // Start will start the server asynchronously. See `Wait` to wait until
 // the execution ends.
 func (s *Server) Start() error {
-	_, err := s.LoadPlugins(s.Config)
+	_, _, err := s.LoadPlugins(s.Config)
 	if err != nil {
 		return err
 	}
