@@ -18,7 +18,7 @@ var (
 
 func main() {
 	logger := logger.GetLogger()
-	config, err := config.Parse()
+	config, err := config.Load()
 	if err != nil {
 		logger.Fatal(err)
 	}
