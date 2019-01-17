@@ -88,7 +88,7 @@ func setupServerID6(args ...string) (handler.Handler6, error) {
 		V6ServerID = &dhcpv6.Duid{
 			Type: dhcpv6.DUID_LL,
 			// sorry, only ethernet for now
-			HwType:        iana.HwTypeEthernet,
+			HwType:        iana.HWTypeEthernet,
 			LinkLayerAddr: hwaddr,
 		}
 	case "llt", "duid-llt", "duid_llt":
@@ -97,7 +97,7 @@ func setupServerID6(args ...string) (handler.Handler6, error) {
 			// sorry, zero-time for now
 			Time: 0,
 			// sorry, only ethernet for now
-			HwType:        iana.HwTypeEthernet,
+			HwType:        iana.HWTypeEthernet,
 			LinkLayerAddr: hwaddr,
 		}
 	case "en", "uuid":
