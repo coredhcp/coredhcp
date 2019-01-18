@@ -134,7 +134,7 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 func (c *Config) getPlugins(ver protocolVersion) ([]*PluginConfig, error) {
 	pluginList := cast.ToSlice(c.v.Get(fmt.Sprintf("server%d.plugins", ver)))
 	if pluginList == nil {
-		return nil, ConfigErrorFromString("dhcpv%d: invalid plugins section, not a list", ver)
+		return nil, ConfigErrorFromString("dhcpv%d: invalid plugins section, not a list or no plugin specified", ver)
 	}
 	return parsePlugins(pluginList)
 }

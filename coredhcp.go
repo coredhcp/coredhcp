@@ -2,6 +2,7 @@ package coredhcp
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/coredhcp/coredhcp/config"
@@ -101,27 +102,75 @@ func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, []*plugins
 // It will not reply if the resulting response is `nil`.
 func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHCPv6) {
 	var (
-		resp dhcpv6.DHCPv6
-		stop bool
+		resp, tmp dhcpv6.DHCPv6
+		stop      bool
+		err       error
 	)
+
+	// Create a suitable basic response packet
+	switch req.Type() {
+	case dhcpv6.MessageTypeSolicit:
+		tmp, err = dhcpv6.NewAdvertiseFromSolicit(req)
+	case dhcpv6.MessageTypeRequest, dhcpv6.MessageTypeConfirm, dhcpv6.MessageTypeRenew,
+		dhcpv6.MessageTypeRebind, dhcpv6.MessageTypeRelease, dhcpv6.MessageTypeInformationRequest:
+		tmp, err = dhcpv6.NewReplyFromDHCPv6Message(req)
+	default:
+		err = fmt.Errorf("MainHandler6: message type %d not supported", req.Type())
+	}
+
+	if err != nil {
+		log.Printf("MainHandler6: NewReplyFromDHCPv6Message failed: %v", err)
+		return
+	}
+	resp = tmp
 	for _, handler := range s.Handlers6 {
 		resp, stop = handler(req, resp)
 		if stop {
 			break
 		}
 	}
+
 	if resp != nil {
 		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
-			log.Printf("conn.Write to %v failed: %v", peer, err)
+			log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
 		}
 	} else {
-		log.Print("Dropping request because response is nil")
+		log.Print("MainHandler6: dropping request because response is nil")
 	}
 }
 
 // MainHandler4 is like MainHandler6, but for DHCPv4 packets.
-func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, d *dhcpv4.DHCPv4) {
-	log.Print(d.Summary())
+func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DHCPv4) {
+	var (
+		resp, tmp *dhcpv4.DHCPv4
+		err       error
+		stop      bool
+	)
+	if req.OpCode != dhcpv4.OpcodeBootRequest {
+		log.Printf("MainHandler4: unsupported opcode %d. Only BootRequest (%d) is supported", req.OpCode, dhcpv4.OpcodeBootRequest)
+		return
+	}
+	tmp, err = dhcpv4.NewReplyFromRequest(req)
+	if err != nil {
+		log.Printf("MainHandler4: failed to build reply: %v", err)
+		return
+	}
+
+	resp = tmp
+	for _, handler := range s.Handlers4 {
+		resp, stop = handler(req, resp)
+		if stop {
+			break
+		}
+	}
+
+	if resp != nil {
+		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
+			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
+		}
+	} else {
+		log.Print("MainHandler4: dropping request because response is nil")
+	}
 }
 
 // Start will start the server asynchronously. See `Wait` to wait until
@@ -135,16 +184,16 @@ func (s *Server) Start() error {
 	// listen
 	if s.Config.Server6 != nil {
 		log.Printf("Starting DHCPv6 listener on %v", s.Config.Server6.Listener)
-		s.Server6 = dhcpv6.NewServer(*s.Config.Server6.Listener, s.MainHandler6)
 		go func() {
+			s.Server6 = dhcpv6.NewServer(*s.Config.Server6.Listener, s.MainHandler6)
 			s.errors <- s.Server6.ActivateAndServe()
 		}()
 	}
 
 	if s.Config.Server4 != nil {
-		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server6.Listener)
-		s.Server4 = dhcpv4.NewServer(*s.Config.Server4.Listener, s.MainHandler4)
+		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server4.Listener)
 		go func() {
+			s.Server4 = dhcpv4.NewServer(*s.Config.Server4.Listener, s.MainHandler4)
 			s.errors <- s.Server4.ActivateAndServe()
 		}()
 	}
