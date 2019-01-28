@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 )
@@ -67,6 +68,17 @@ func Load() (*Config, error) {
 	if c.Server6 == nil && c.Server4 == nil {
 		return nil, ConfigErrorFromString("need at least one valid config for DHCPv6 or DHCPv4")
 	}
+
+	c.v.WatchConfig()
+	c.v.OnConfigChange(func(e fsnotify.Event) {
+		if err := c.parseConfig(protocolV6); err != nil {
+			log.Error(err)
+		}
+		if err := c.parseConfig(protocolV4); err != nil {
+			log.Error(err)
+		}
+	})
+
 	return c, nil
 }
 
