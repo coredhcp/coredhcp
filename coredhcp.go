@@ -10,7 +10,9 @@ import (
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/insomniacslk/dhcp/dhcpv6/server6"
 )
 
 var log = logger.GetLogger()
@@ -21,8 +23,8 @@ type Server struct {
 	Handlers6 []handler.Handler6
 	Handlers4 []handler.Handler4
 	Config    *config.Config
-	Server6   *dhcpv6.Server
-	Server4   *dhcpv4.Server
+	Server6   *server6.Server
+	Server4   *server4.Server
 	errors    chan error
 }
 
@@ -185,7 +187,7 @@ func (s *Server) Start() error {
 	if s.Config.Server6 != nil {
 		log.Printf("Starting DHCPv6 listener on %v", s.Config.Server6.Listener)
 		go func() {
-			s.Server6 = dhcpv6.NewServer(*s.Config.Server6.Listener, s.MainHandler6)
+			s.Server6 = server6.NewServer(*s.Config.Server6.Listener, s.MainHandler6)
 			s.errors <- s.Server6.ActivateAndServe()
 		}()
 	}
@@ -193,7 +195,7 @@ func (s *Server) Start() error {
 	if s.Config.Server4 != nil {
 		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server4.Listener)
 		go func() {
-			s.Server4 = dhcpv4.NewServer(*s.Config.Server4.Listener, s.MainHandler4)
+			s.Server4 = server4.NewServer(*s.Config.Server4.Listener, s.MainHandler4)
 			s.errors <- s.Server4.ActivateAndServe()
 		}()
 	}

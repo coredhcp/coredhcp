@@ -5,8 +5,8 @@ server6:
         - file: "leases.txt"
         # - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
 
-server4:
-    listen: '0.0.0.0:67'
-    plugins:
-        - server_id: 192.168.1.12
-#        - file: "leases.txt"
+#server4:
+#    listen: '0.0.0.0:67'
+#    plugins:
+#        - server_id: 192.168.1.12
+##        - file: "leases.txt"
