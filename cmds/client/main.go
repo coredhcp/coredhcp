@@ -10,6 +10,7 @@ import (
 
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/insomniacslk/dhcp/dhcpv6/client6"
 	"github.com/insomniacslk/dhcp/iana"
 )
 
@@ -25,7 +26,7 @@ func main() {
 		macString = "00:11:22:33:44:55"
 	}
 
-	c := dhcpv6.NewClient()
+	c := client6.NewClient()
 	c.LocalAddr = &net.UDPAddr{
 		IP:   net.ParseIP("::1"),
 		Port: 546,
