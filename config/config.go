@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/fsnotify/fsnotify"
@@ -59,6 +61,7 @@ func Load() (*Config, error) {
 	if err := c.v.ReadInConfig(); err != nil {
 		return nil, err
 	}
+
 	if err := c.parseConfig(protocolV6); err != nil {
 		return nil, err
 	}
@@ -77,6 +80,7 @@ func Load() (*Config, error) {
 		if err := c.parseConfig(protocolV4); err != nil {
 			log.Error(err)
 		}
+		atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c)), unsafe.Pointer(c))
 	})
 
 	return c, nil
