@@ -80,7 +80,6 @@ func Load() (*Config, error) {
 		if err := c.parseConfig(protocolV4); err != nil {
 			log.Error(err)
 		}
-		atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c)), unsafe.Pointer(c))
 	})
 
 	return c, nil
@@ -180,10 +179,13 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		Listener: listenAddr,
 		Plugins:  plugins,
 	}
+
 	if ver == protocolV6 {
 		c.Server6 = &sc
+		atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c.Server6)), unsafe.Pointer(c.Server6))
 	} else if ver == protocolV4 {
 		c.Server4 = &sc
+		atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c.Server4)), unsafe.Pointer(c.Server4))
 	}
 	return nil
 }
