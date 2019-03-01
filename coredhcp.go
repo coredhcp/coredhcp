@@ -112,10 +112,10 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 	// Create a suitable basic response packet
 	switch req.Type() {
 	case dhcpv6.MessageTypeSolicit:
-		tmp, err = dhcpv6.NewAdvertiseFromSolicit(req)
+		tmp, err = dhcpv6.NewAdvertiseFromSolicit(req.(*dhcpv6.Message))
 	case dhcpv6.MessageTypeRequest, dhcpv6.MessageTypeConfirm, dhcpv6.MessageTypeRenew,
 		dhcpv6.MessageTypeRebind, dhcpv6.MessageTypeRelease, dhcpv6.MessageTypeInformationRequest:
-		tmp, err = dhcpv6.NewReplyFromDHCPv6Message(req)
+		tmp, err = dhcpv6.NewReplyFromMessage(req.(*dhcpv6.Message))
 	default:
 		err = fmt.Errorf("MainHandler6: message type %d not supported", req.Type())
 	}
