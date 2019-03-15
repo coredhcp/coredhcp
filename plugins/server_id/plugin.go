@@ -36,7 +36,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			log.Infof("plugins/server_id: requested server ID does not match this server's ID. Got %v, want %v", sid.Sid, V6ServerID)
 		}
 	}
-	return dhcpv6.WithServerID(*V6ServerID)(resp), false
+	dhcpv6.WithServerID(*V6ServerID)(resp)
+	return resp, false
 }
 
 // Handler4 handles DHCPv4 packets for the server_id plugin.
