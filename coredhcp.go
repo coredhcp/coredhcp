@@ -186,17 +186,23 @@ func (s *Server) Start() error {
 	// listen
 	if s.Config.Server6 != nil {
 		log.Printf("Starting DHCPv6 listener on %v", s.Config.Server6.Listener)
+		s.Server6, err = server6.NewServer(s.Config.Server6.Listener, s.MainHandler6)
+		if err != nil {
+			return err
+		}
 		go func() {
-			s.Server6 = server6.NewServer(*s.Config.Server6.Listener, s.MainHandler6)
-			s.errors <- s.Server6.ActivateAndServe()
+			s.errors <- s.Server6.Serve()
 		}()
 	}
 
 	if s.Config.Server4 != nil {
 		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server4.Listener)
+		s.Server4, err = server4.NewServer(s.Config.Server4.Listener, s.MainHandler4)
+		if err != nil {
+			return err
+		}
 		go func() {
-			s.Server4 = server4.NewServer(*s.Config.Server4.Listener, s.MainHandler4)
-			s.errors <- s.Server4.ActivateAndServe()
+			s.errors <- s.Server4.Serve()
 		}()
 	}
 
@@ -206,13 +212,14 @@ func (s *Server) Start() error {
 // Wait waits until the end of the execution of the server.
 func (s *Server) Wait() error {
 	log.Print("Waiting")
+	err := <-s.errors
 	if s.Server6 != nil {
 		s.Server6.Close()
 	}
 	if s.Server4 != nil {
 		s.Server4.Close()
 	}
-	return <-s.errors
+	return err
 }
 
 // NewServer creates a Server instance with the provided configuration.
