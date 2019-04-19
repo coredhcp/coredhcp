@@ -186,7 +186,21 @@ func (s *Server) Start() error {
 	// listen
 	if s.Config.Server6 != nil {
 		log.Printf("Starting DHCPv6 listener on %v", s.Config.Server6.Listener)
-		s.Server6, err = server6.NewServer(s.Config.Server6.Listener, s.MainHandler6)
+		listener := s.Config.Server6.Listener
+		ifname := s.Config.Server6.Interface
+		opts := make([]server6.ServerOpt, 0)
+		if listener.IP.IsMulticast() {
+			iface, err := net.InterfaceByName(ifname)
+			if err != nil {
+				return err
+			}
+			conn, err := net.ListenMulticastUDP("udp6", iface, listener)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, server6.WithConn(conn))
+		}
+		s.Server6, err = server6.NewServer(s.Config.Server6.Listener, s.MainHandler6, opts...)
 		if err != nil {
 			return err
 		}
