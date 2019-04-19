@@ -77,7 +77,34 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		return nil, false
 	}
 	log.Printf("Found IP address %s for MAC %s", ipaddr, mac)
-	// TODO add an OptIANA based on the above data
+	resp.AddOption(&dhcpv6.OptIANA{
+		// FIXME this must be unique per client address
+		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
+		Options: []dhcpv6.Option{
+			&dhcpv6.OptIAAddress{
+				IPv6Addr:          ipaddr,
+				PreferredLifetime: 3600,
+				ValidLifetime:     3600,
+			},
+		},
+	})
+	resp.AddOption(&dhcpv6.OptDNSRecursiveNameServer{
+		NameServers: []net.IP{
+			// FIXME this must be read from the config file
+			net.ParseIP("2001:4860:4860::8888"),
+			net.ParseIP("2001:4860:4860::4444"),
+		},
+	})
+	if oro := req.GetOption(dhcpv6.OptionORO); len(oro) > 0 {
+		for _, code := range oro[0].(*dhcpv6.OptRequestedOption).RequestedOptions() {
+			if code == dhcpv6.OptionBootfileURL {
+				// bootfile URL is requested
+				resp.AddOption(
+					&dhcpv6.OptBootFileURL{BootFileURL: []byte("http://[2001:db8::0:1]/nbp")},
+				)
+			}
+		}
+	}
 	return resp, true
 }
 

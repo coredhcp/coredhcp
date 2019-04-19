@@ -35,8 +35,9 @@ func New() *Config {
 // ServerConfig holds a server configuration that is specific to either the
 // DHCPv6 server or the DHCPv4 server.
 type ServerConfig struct {
-	Listener *net.UDPAddr
-	Plugins  []*PluginConfig
+	Listener  *net.UDPAddr
+	Interface string
+	Plugins   []*PluginConfig
 }
 
 // PluginConfig holds the configuration of a plugin
@@ -70,6 +71,13 @@ func Load() (*Config, error) {
 	return c, nil
 }
 
+func protoVersionCheck(v protocolVersion) error {
+	if v != protocolV6 && v != protocolV4 {
+		return fmt.Errorf("invalid protocol version: %d", v)
+	}
+	return nil
+}
+
 func parsePlugins(pluginList []interface{}) ([]*PluginConfig, error) {
 	plugins := make([]*PluginConfig, 0)
 	for idx, val := range pluginList {
@@ -97,7 +105,25 @@ func parsePlugins(pluginList []interface{}) ([]*PluginConfig, error) {
 	return plugins, nil
 }
 
+func (c *Config) getInterface(ver protocolVersion) (string, error) {
+	if err := protoVersionCheck(ver); err != nil {
+		return "", err
+	}
+	directive := fmt.Sprintf("server%d.interface", ver)
+	if exists := c.v.Get(directive); exists == nil {
+		return "", ConfigErrorFromString("dhcpv%d: missing `%s` directive", ver, directive)
+	}
+	ifname := c.v.GetString(directive)
+	if ifname == "" {
+		return "", ConfigErrorFromString("dhcpv%d: missing `%s` directive", ver, directive)
+	}
+	return ifname, nil
+}
+
 func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
+	if err := protoVersionCheck(ver); err != nil {
+		return nil, err
+	}
 	if exists := c.v.Get(fmt.Sprintf("server%d", ver)); exists == nil {
 		// it is valid to have no server configuration defined, and in this case
 		// no listening address and no error are returned.
@@ -132,6 +158,9 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 }
 
 func (c *Config) getPlugins(ver protocolVersion) ([]*PluginConfig, error) {
+	if err := protoVersionCheck(ver); err != nil {
+		return nil, err
+	}
 	pluginList := cast.ToSlice(c.v.Get(fmt.Sprintf("server%d.plugins", ver)))
 	if pluginList == nil {
 		return nil, ConfigErrorFromString("dhcpv%d: invalid plugins section, not a list or no plugin specified", ver)
@@ -140,8 +169,12 @@ func (c *Config) getPlugins(ver protocolVersion) ([]*PluginConfig, error) {
 }
 
 func (c *Config) parseConfig(ver protocolVersion) error {
-	if ver != protocolV6 && ver != protocolV4 {
-		return ConfigErrorFromString("unknown protocol version: %d", ver)
+	if err := protoVersionCheck(ver); err != nil {
+		return err
+	}
+	ifname, err := c.getInterface(ver)
+	if err != nil {
+		return err
 	}
 	listenAddr, err := c.getListenAddress(ver)
 	if err != nil {
@@ -161,8 +194,9 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		log.Printf("DHCPv%d: found plugin `%s` with %d args: %v", ver, p.Name, len(p.Args), p.Args)
 	}
 	sc := ServerConfig{
-		Listener: listenAddr,
-		Plugins:  plugins,
+		Listener:  listenAddr,
+		Interface: ifname,
+		Plugins:   plugins,
 	}
 	if ver == protocolV6 {
 		c.Server6 = &sc
