@@ -78,8 +78,9 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 	log.Printf("Found IP address %s for MAC %s", ipaddr, mac)
 	resp.AddOption(&dhcpv6.OptIANA{
-		// FIXME this must be unique per client address
-		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
+		// TODO the client should provide the IAID. Use the provided one, and
+		// fall back on the last 4 bytes of the MAC address otherwise.
+		IaId: [4]byte{mac[2], mac[3], mac[4], mac[5]},
 		Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
 				IPv6Addr:          ipaddr,
