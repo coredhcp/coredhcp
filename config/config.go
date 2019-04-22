@@ -124,11 +124,6 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 	if err := protoVersionCheck(ver); err != nil {
 		return nil, err
 	}
-	if exists := c.v.Get(fmt.Sprintf("server%d", ver)); exists == nil {
-		// it is valid to have no server configuration defined, and in this case
-		// no listening address and no error are returned.
-		return nil, nil
-	}
 	addr := c.v.GetString(fmt.Sprintf("server%d.listen", ver))
 	if addr == "" {
 		return nil, ConfigErrorFromString("dhcpv%d: missing `server%d.listen` directive", ver, ver)
@@ -171,6 +166,10 @@ func (c *Config) getPlugins(ver protocolVersion) ([]*PluginConfig, error) {
 func (c *Config) parseConfig(ver protocolVersion) error {
 	if err := protoVersionCheck(ver); err != nil {
 		return err
+	}
+	if exists := c.v.Get(fmt.Sprintf("server%d", ver)); exists == nil {
+		// it is valid to have no server configuration defined
+		return nil
 	}
 	ifname, err := c.getInterface(ver)
 	if err != nil {

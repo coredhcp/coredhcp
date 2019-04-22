@@ -167,6 +167,11 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DH
 	}
 
 	if resp != nil {
+		if !req.GatewayIPAddr.IsUnspecified() {
+			// TODO: make RFC8357 compliant
+			peer = &net.UDPAddr{IP: req.GatewayIPAddr, Port: dhcpv4.ServerPort}
+		}
+
 		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 		}
