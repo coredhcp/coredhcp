@@ -1,10 +1,10 @@
 server6:
-    listen: '[ff02::1:2]:547'
     interface: "eth0"
+    #listen: 'your-unicast-address:547'
     plugins:
         - server_id: LL 00:de:ad:be:ef:00
         - file: "leases.txt"
-        # - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
+        # - dns: 2001:4860:4860::8888 2001:4860:4860::8844
 
 server4:
     listen: '0.0.0.0:67'

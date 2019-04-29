@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 )
@@ -126,7 +128,17 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 	}
 	addr := c.v.GetString(fmt.Sprintf("server%d.listen", ver))
 	if addr == "" {
-		return nil, ConfigErrorFromString("dhcpv%d: missing `server%d.listen` directive", ver, ver)
+		// return default listener
+		if ver == protocolV6 {
+			return &net.UDPAddr{
+				IP:   net.IPv6unspecified,
+				Port: dhcpv6.DefaultServerPort,
+			}, nil
+		}
+		return &net.UDPAddr{
+			IP:   net.IPv4zero,
+			Port: dhcpv4.ServerPort,
+		}, nil
 	}
 	ipStr, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
