@@ -1,8 +1,6 @@
 package plugins
 
 import (
-	"fmt"
-
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 )
@@ -19,7 +17,7 @@ type Plugin struct {
 }
 
 // RegisteredPlugins maps a plugin name to a Plugin instance.
-var RegisteredPlugins = make(map[string]*Plugin, 0)
+var RegisteredPlugins = make(map[string]*Plugin)
 
 // SetupFunc6 defines a plugin setup function for DHCPv6
 type SetupFunc6 func(args ...string) (handler.Handler6, error)
@@ -28,10 +26,12 @@ type SetupFunc6 func(args ...string) (handler.Handler6, error)
 type SetupFunc4 func(args ...string) (handler.Handler4, error)
 
 // RegisterPlugin registers a plugin by its name and setup functions.
-func RegisterPlugin(name string, setup6 SetupFunc6, setup4 SetupFunc4) error {
+func RegisterPlugin(name string, setup6 SetupFunc6, setup4 SetupFunc4) {
 	log.Printf("Registering plugin \"%s\"", name)
 	if _, ok := RegisteredPlugins[name]; ok {
-		return fmt.Errorf("Plugin \"%s\" already registered", name)
+		// TODO this highlights that asking the plugins to register themselves
+		// is not the right approach. Need to register them in the main program.
+		log.Panicf("Plugin '%s' is already registered", name)
 	}
 	plugin := Plugin{
 		Name:   name,
@@ -39,5 +39,4 @@ func RegisterPlugin(name string, setup6 SetupFunc6, setup4 SetupFunc4) error {
 		Setup4: setup4,
 	}
 	RegisteredPlugins[name] = &plugin
-	return nil
 }

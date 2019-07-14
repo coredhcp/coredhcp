@@ -10,12 +10,6 @@ import (
 	_ "github.com/coredhcp/coredhcp/plugins/server_id"
 )
 
-// Application variables
-var (
-	AppName    = "CoreDHCP"
-	AppVersion = "v0.1"
-)
-
 func main() {
 	logger := logger.GetLogger()
 	config, err := config.Load()

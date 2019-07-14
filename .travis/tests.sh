@@ -12,6 +12,9 @@ for d in $(go list ./... | grep -v vendor); do
         cat profile.out >> coverage.txt
         rm profile.out
     fi
+done
+
+for d in $(go list -tags=integration ./... | grep -v vendor); do
     # integration tests
     go test -c -tags=integration -race -coverprofile=profile.out -covermode=atomic $d
     testbin="./$(basename $d).test"
@@ -19,6 +22,6 @@ for d in $(go list ./... | grep -v vendor); do
     test -x "${testbin}" && sudo "./${testbin}"
     if [ -f profile.out ]; then
         cat profile.out >> coverage.txt
-        rm profile.out
+        rm -f profile.out
     fi
 done

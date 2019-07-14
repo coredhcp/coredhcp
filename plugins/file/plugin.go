@@ -30,7 +30,6 @@ var (
 	DHCPv6Records map[string]net.IP
 	DHCPv4Records map[string]net.IP
 )
-var serverID *dhcpv6.OptServerId
 
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
