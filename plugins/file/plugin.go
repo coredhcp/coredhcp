@@ -30,7 +30,6 @@ var (
 	DHCPv6Records map[string]net.IP
 	DHCPv4Records map[string]net.IP
 )
-var serverID *dhcpv6.OptServerId
 
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
@@ -41,7 +40,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP, 0)
+	records := make(map[string]net.IP)
 	// TODO ignore comments
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
