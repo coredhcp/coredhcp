@@ -41,7 +41,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP, 0)
+	records := make(map[string]net.IP)
 	// TODO ignore comments
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
@@ -71,12 +71,14 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	if err != nil {
 		return nil, false
 	}
+	log.Printf("plugins/file: looking up an IP address for MAC %s", mac.String())
 
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
+		log.Warningf("plugins/file: MAC address %s is unknown", mac.String())
 		return nil, false
 	}
-	log.Printf("Found IP address %s for MAC %s", ipaddr, mac)
+	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, mac.String())
 	resp.AddOption(&dhcpv6.OptIANA{
 		// FIXME this must be unique per client address
 		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
