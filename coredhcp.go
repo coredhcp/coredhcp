@@ -104,18 +104,23 @@ func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, []*plugins
 // It will not reply if the resulting response is `nil`.
 func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHCPv6) {
 	var (
-		resp, tmp dhcpv6.DHCPv6
-		stop      bool
-		err       error
+		resp dhcpv6.DHCPv6
+		stop bool
+		err  error
 	)
 
 	// Create a suitable basic response packet
 	switch req.Type() {
 	case dhcpv6.MessageTypeSolicit:
-		tmp, err = dhcpv6.NewAdvertiseFromSolicit(req.(*dhcpv6.Message))
+		m := req.(*dhcpv6.Message)
+		if m.GetOneOption(dhcpv6.OptionRapidCommit) != nil {
+			resp, err = dhcpv6.NewReplyFromMessage(m)
+		} else {
+			resp, err = dhcpv6.NewAdvertiseFromSolicit(m)
+		}
 	case dhcpv6.MessageTypeRequest, dhcpv6.MessageTypeConfirm, dhcpv6.MessageTypeRenew,
 		dhcpv6.MessageTypeRebind, dhcpv6.MessageTypeRelease, dhcpv6.MessageTypeInformationRequest:
-		tmp, err = dhcpv6.NewReplyFromMessage(req.(*dhcpv6.Message))
+		resp, err = dhcpv6.NewReplyFromMessage(req.(*dhcpv6.Message))
 	default:
 		err = fmt.Errorf("MainHandler6: message type %d not supported", req.Type())
 	}
@@ -124,7 +129,6 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 		log.Printf("MainHandler6: NewReplyFromDHCPv6Message failed: %v", err)
 		return
 	}
-	resp = tmp
 	for _, handler := range s.Handlers6 {
 		resp, stop = handler(req, resp)
 		if stop {
