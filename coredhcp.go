@@ -109,20 +109,26 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 		err  error
 	)
 
+	// decapsulate the relay message
+	msg, err := req.GetInnerMessage()
+	if err != nil {
+		log.Warningf("DHCPv6: cannot get inner message: %v", err)
+		return
+	}
+
 	// Create a suitable basic response packet
-	switch req.Type() {
+	switch msg.Type() {
 	case dhcpv6.MessageTypeSolicit:
-		m := req.(*dhcpv6.Message)
-		if m.GetOneOption(dhcpv6.OptionRapidCommit) != nil {
-			resp, err = dhcpv6.NewReplyFromMessage(m)
+		if msg.GetOneOption(dhcpv6.OptionRapidCommit) != nil {
+			resp, err = dhcpv6.NewReplyFromMessage(msg)
 		} else {
-			resp, err = dhcpv6.NewAdvertiseFromSolicit(m)
+			resp, err = dhcpv6.NewAdvertiseFromSolicit(msg)
 		}
 	case dhcpv6.MessageTypeRequest, dhcpv6.MessageTypeConfirm, dhcpv6.MessageTypeRenew,
 		dhcpv6.MessageTypeRebind, dhcpv6.MessageTypeRelease, dhcpv6.MessageTypeInformationRequest:
-		resp, err = dhcpv6.NewReplyFromMessage(req.(*dhcpv6.Message))
+		resp, err = dhcpv6.NewReplyFromMessage(msg)
 	default:
-		err = fmt.Errorf("MainHandler6: message type %d not supported", req.Type())
+		err = fmt.Errorf("MainHandler6: message type %d not supported", msg.Type())
 	}
 
 	if err != nil {
@@ -134,6 +140,16 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 		if stop {
 			break
 		}
+	}
+
+	// if the request was relayed, re-encapsulate the response
+	if req.IsRelay() {
+		tmp, err := dhcpv6.NewRelayReplFromRelayForw(req.(*dhcpv6.RelayMessage), resp.(*dhcpv6.Message))
+		if err != nil {
+			log.Warningf("DHCPv6: cannot create relay-repl from relay-forw: %v", err)
+			return
+		}
+		resp = tmp
 	}
 
 	if resp != nil {
