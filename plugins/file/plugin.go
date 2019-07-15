@@ -79,7 +79,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, mac.String())
 	resp.AddOption(&dhcpv6.OptIANA{
-		// FIXME this must be unique per client address
+		// FIXME copy this field from the client, reject/drop if missing
 		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
 		Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
@@ -100,6 +100,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		for _, code := range oro[0].(*dhcpv6.OptRequestedOption).RequestedOptions() {
 			if code == dhcpv6.OptionBootfileURL {
 				// bootfile URL is requested
+				// FIXME this field should come from the configuration, not
+				// being hardcoded
 				resp.AddOption(
 					&dhcpv6.OptBootFileURL{BootFileURL: []byte("http://[2001:db8::0:1]/nbp")},
 				)
