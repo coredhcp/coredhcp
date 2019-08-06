@@ -1,5 +1,7 @@
 .*.swp
 cmds/coredhcp/leases.txt
+cmds/coredhcp/leases4.txt
 cmds/coredhcp/config.yml
 cmds/coredhcp/coredhcp
 cmds/client/client
+.vscode
