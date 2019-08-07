@@ -26,6 +26,7 @@ func init() {
 	plugins.RegisterPlugin("IPv4", setupIPV6, setupIPv4)
 }
 
+//Record holds an IP lease record
 type Record struct {
 	IP        net.IP
 	leaseTime uint32
@@ -98,8 +99,6 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	log.Printf("plugins/IPv4: received DHCPv4 packet: %s", req.Summary())
-
 	record, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("plugins/IPv4: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
@@ -145,7 +144,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	default:
 		log.Printf("plugins/IPv4: Unhandled message type: %v", mt)
 	}
-	log.Printf("plugins/IPv4: sent DHCPv4 packet: %s", reply.Summary())
 	return reply, true
 }
 

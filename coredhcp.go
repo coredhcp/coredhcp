@@ -193,7 +193,6 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DH
 		}
 		if req.ClientIPAddr.IsUnspecified() {
 			peer = &net.UDPAddr{IP: net.IPv4(255, 255, 255, 255), Port: dhcpv4.ClientPort}
-			log.Printf("MainHandler4: Broadcasting")
 		}
 		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
