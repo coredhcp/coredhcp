@@ -28,6 +28,30 @@ server6:
 
 See also [config.yml.example](cmds/coredhcp/config.yml.example).
 
+## Example configuration
+
+In CoreDHCP almost everything is implemented as a plugin. The order of plugins in the configuration matters: every request is evaluated calling each plugin in order, until one breaks the evaluation and responds to, or drops, the request.
+
+The following configuration runs a DHCPv4-only server
+
+```
+server6:
+    #interface: "enp0s20f0u2c2"
+    #interface: "enp0s20f0u3c2"
+    interface: "vs0"
+
+    #listen: 'your-unicast-address:547'
+    plugins:
+        - server_id: LL 00:de:ad:be:ef:00
+        #- dns: 2001:4860:4860::8888 2001:4860:4860::8844
+
+server4:
+    listen: '0.0.0.0:67'
+    interface: "vs0"
+    plugins:
+        - IPv4: leases4.txt 10.10.10.1 255.255.255.0 8.8.8.8 60 255.255.255.0
+```
+
 ## Build and run
 
 The server is located under [cmds/coredhcp/](cmds/coredhcp/), so enter that
