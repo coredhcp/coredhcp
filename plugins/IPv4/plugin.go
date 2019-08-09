@@ -115,7 +115,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		StaticRecords[req.ClientHWAddr.String()] = record
 
 	}
-	println(record.IP)
 	ipaddr := record.IP
 	log.Printf("plugins/IPv4: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	if req == nil {
