@@ -48,6 +48,8 @@ github.com/insomniacslk/dhcp v0.0.0-20190729073401-393ae75 h1:6ml59HeoqwyEPJmBNS
 github.com/insomniacslk/dhcp v0.0.0-20190729073401-393ae75/go.mod h1:CfMdguCK66I5DAUJgGKyNz8aB6vO5dZzkm9Xep6WGvw=
 github.com/insomniacslk/dhcp v0.0.0-20190729073401-6d0d21cc6337 h1:zIo1LfD0djRD7qDyYAtUUKmbQshy1kUKANWaQL0Ptvw=
 github.com/insomniacslk/dhcp v0.0.0-20190729073401-6d0d21cc6337/go.mod h1:CfMdguCK66I5DAUJgGKyNz8aB6vO5dZzkm9Xep6WGvw=
+github.com/insomniacslk/dhcp v0.0.0-20190814082028-393ae75a101b h1:2PyiA5CVpWhQ4CPINgksFnopxYOGUN1n2IjKwrRqQDE=
+github.com/insomniacslk/dhcp v0.0.0-20190814082028-393ae75a101b/go.mod h1:CfMdguCK66I5DAUJgGKyNz8aB6vO5dZzkm9Xep6WGvw=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
