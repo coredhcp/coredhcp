@@ -87,7 +87,10 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 		if (leased + int64(leaseTime)) > time.Now().Unix() {
 			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: uint32(leaseTime), leased: leased}
 		}
-		saveRecords(records)
+		err = saveRecords(records)
+		if err != nil {
+			return nil, fmt.Errorf("plugins/IPv4: unable to save records, got: %v", err)
+		}
 	}
 	return records, nil
 }
@@ -271,7 +274,10 @@ func saveIPAddress(record Record, mac net.HardwareAddr) error {
 	if err != nil {
 		return err
 	}
-	f.Sync()
+	err = f.Sync()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
