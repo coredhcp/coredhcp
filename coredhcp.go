@@ -9,8 +9,8 @@ import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
-	server4 "github.com/coredhcp/coredhcp/server"
 	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/dhcpv6/server6"
 )
@@ -224,7 +224,7 @@ func (s *Server) Start() error {
 
 	if s.Config.Server4 != nil {
 		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server4.Listener)
-		s.Server4, err = server4.NewServer(s.Config.Server4.Listener, s.MainHandler4, s.Config.Server4.Interface)
+		s.Server4, err = server4.NewServer(s.Config.Server4.Interface, s.Config.Server4.Listener, s.MainHandler4)
 		if err != nil {
 			return err
 		}
