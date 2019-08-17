@@ -231,25 +231,28 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
 		StaticRecords = records
 	} else {
-		if len(args) < 4 {
+		if len(args) < 3 {
 			return nil, nil, errors.New("plugins/file: need a file name, server IP, netmask and a lease time")
 		}
 		filename = args[0]
 		if filename == "" {
 			return nil, nil, errors.New("plugins/file: got empty file name")
 		}
-		serverIP = net.ParseIP(args[1])
-		if serverIP.To16() == nil {
+		ip, network, err := net.ParseCIDR(args[1])
+		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/file: expected an IPv4 address, got: " + args[1])
 		}
-		netmask = net.ParseIP(args[2])
-		if netmask.To16() == nil {
-			return Handler6, Handler4, errors.New("plugins/file: expected an IPv4 address, got: " + args[2])
+		serverIP = ip
+
+		netmask = net.IPv4(network.Mask[0], network.Mask[0], network.Mask[0], network.Mask[0])
+
+		if !checkValidNetmask(netmask) {
+			return Handler6, Handler4, errors.New("plugins/file: netmask is not valid, got: " + args[1])
 		}
 
-		leaseTime, err := strconv.ParseUint(args[3], 10, 32)
+		leaseTime, err := strconv.ParseUint(args[2], 10, 32)
 		if err != nil {
-			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[3])
+			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[2])
 		}
 		LeaseTime = uint32(leaseTime)
 		records, err := LoadDHCPv4Records(filename)
@@ -341,4 +344,10 @@ func saveRecords(DHCPv4Records map[string]Record) error {
 	}
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
+}
+func checkValidNetmask(netmask net.IP) bool {
+	netmaskInt := binary.BigEndian.Uint32(netmask.To4())
+	x := ^netmaskInt
+	y := x + 1
+	return (y & x) == 0
 }

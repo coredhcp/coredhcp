@@ -70,24 +70,22 @@ func setupServer(v6 bool, args ...string) (handler.Handler6, handler.Handler4, e
 	if v6 {
 
 	} else {
-		if len(args) < 3 {
+		if len(args) < 2 {
 			return nil, nil, errors.New("plugins/server: need a file name, server IP, netmask and a DNS server")
 		}
-		serverIP = net.ParseIP(args[0])
-		if serverIP.To16() == nil {
+		ip, network, err := net.ParseCIDR(args[0])
+		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/server: expected an IPv4 address, got: " + args[0])
 		}
-		netmask = net.ParseIP(args[1])
-		if netmask.To16() == nil {
-			return Handler6, Handler4, errors.New("plugins/server: expected an IPv4 address, got: " + args[1])
-		}
-		if netmask.IsUnspecified() {
-			return Handler6, Handler4, errors.New("plugins/server: netmask can not be 0.0.0.0, got: " + args[1])
-		}
+		serverIP = ip
+
+		netmask = net.IPv4(network.Mask[0], network.Mask[0], network.Mask[0], network.Mask[0])
+
 		if !checkValidNetmask(netmask) {
-			return Handler6, Handler4, errors.New("plugins/server: netmask is not valid, got: " + args[1])
+			return Handler6, Handler4, errors.New("plugins/server: netmask is not valid, got: " + args[0])
 		}
-		subnet := net.ParseIP(args[2])
+
+		subnet := net.ParseIP(args[1])
 		if subnet.To16() == nil {
 			return Handler6, Handler4, errors.New("plugins/server: expected an IPv4 address, got:" + ClientSubnet.String())
 		}
@@ -100,6 +98,12 @@ func setupServer(v6 bool, args ...string) (handler.Handler6, handler.Handler4, e
 	return Handler6, Handler4, nil
 }
 func checkValidNetmask(netmask net.IP) bool {
+	if netmask.To16() == nil {
+		return false
+	}
+	if netmask.IsUnspecified() {
+		return false
+	}
 	netmaskInt := binary.BigEndian.Uint32(netmask.To4())
 	x := ^netmaskInt
 	y := x + 1
