@@ -26,7 +26,6 @@ var StaticRecords map[string]net.IP
 var (
 	serverIP     net.IP
 	netmask      net.IP
-	DNSServer    net.IP
 	ClientSubnet net.IPMask
 )
 
@@ -46,13 +45,11 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		resp.UpdateOption(dhcpv4.OptSubnetMask(ClientSubnet))
 		resp.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
 		resp.UpdateOption(dhcpv4.OptRouter(serverIP))
-		resp.UpdateOption(dhcpv4.OptDNS(serverIP))
 	case dhcpv4.MessageTypeRequest:
 		resp.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
 		resp.UpdateOption(dhcpv4.OptSubnetMask(ClientSubnet))
 		resp.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
 		resp.UpdateOption(dhcpv4.OptRouter(serverIP))
-		resp.UpdateOption(dhcpv4.OptDNS(serverIP))
 	default:
 		log.Printf("plugins/IPv4: Unhandled message type: %v", mt)
 	}
@@ -73,28 +70,24 @@ func setupIP(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error
 	if v6 {
 
 	} else {
-		if len(args) < 4 {
+		if len(args) < 3 {
 			return nil, nil, errors.New("plugins/IPv4: need a file name, server IP, netmask and a DNS server")
 		}
 		serverIP = net.ParseIP(args[0])
 		if serverIP.To16() == nil {
-			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got: " + args[1])
+			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got: " + args[0])
 		}
 		netmask = net.ParseIP(args[1])
 		if netmask.To16() == nil {
-			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got: " + args[2])
+			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got: " + args[1])
 		}
 		if netmask.IsUnspecified() {
-			return Handler6, Handler4, errors.New("plugins/IPv4: netmask can not be 0.0.0.0, got: " + args[2])
+			return Handler6, Handler4, errors.New("plugins/IPv4: netmask can not be 0.0.0.0, got: " + args[1])
 		}
 		if !checkValidNetmask(netmask) {
-			return Handler6, Handler4, errors.New("plugins/IPv4: netmask is not valid, got: " + args[2])
+			return Handler6, Handler4, errors.New("plugins/IPv4: netmask is not valid, got: " + args[1])
 		}
-		DNSServer = net.ParseIP(args[2])
-		if DNSServer.To16() == nil {
-			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got: " + args[3])
-		}
-		subnet := net.ParseIP(args[3])
+		subnet := net.ParseIP(args[2])
 		if subnet.To16() == nil {
 			return Handler6, Handler4, errors.New("plugins/IPv4: expected an IPv4 address, got:" + ClientSubnet.String())
 		}
