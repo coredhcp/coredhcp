@@ -1,4 +1,4 @@
-package DNS
+package dns
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	DNSServers []net.IP
+	dnsServers []net.IP
 )
 var log = logger.GetLogger()
 
@@ -35,9 +35,9 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 		if DNSServer.To16() == nil {
 			return Handler4, errors.New("plugins/DNS: expected an DNS server address, got: " + arg)
 		}
-		DNSServers = append(DNSServers, DNSServer)
+		dnsServers = append(dnsServers, DNSServer)
 	}
-	log.Printf("plugins/DNS: loaded %d DNS servers.", len(DNSServers))
+	log.Printf("plugins/DNS: loaded %d DNS servers.", len(dnsServers))
 	return Handler4, nil
 }
 
@@ -48,6 +48,6 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 //Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	resp.Options.Update(dhcpv4.OptDNS(DNSServers...))
+	resp.Options.Update(dhcpv4.OptDNS(dnsServers...))
 	return resp, false
 }
