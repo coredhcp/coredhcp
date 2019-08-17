@@ -202,8 +202,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		log.Printf("plugins/file: NewReplyFromRequest failed: %v", err)
 		return resp, true
 	}
-
-	log.Printf("plugins/file: received DHCPv4 packet: %s", reply.Summary())
 	return reply, false
 }
 
