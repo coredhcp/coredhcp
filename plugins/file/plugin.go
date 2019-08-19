@@ -179,13 +179,13 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
-		record, ok = createIP(serverIP, netmask)
-		if !ok {
-			log.Printf("plugins/file: no new IP addresses available")
+		record, err := createIP(serverIP, netmask)
+		if err != nil {
+			log.Error(err)
 			return resp, true
 
 		}
-		err := saveIPAddress(record, req.ClientHWAddr)
+		err = saveIPAddress(record, req.ClientHWAddr)
 		if err != nil {
 			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
 		}
@@ -193,16 +193,14 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 
 	}
 	ipaddr := record.IP
+	resp.YourIPAddr = ipaddr
+	dur, _ := time.ParseDuration(strconv.FormatUint(uint64(LeaseTime), 10) + "s")
+	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(dur))
 	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	if req == nil {
 		log.Printf("plugins/file: Packet is nil!")
 	}
-	reply, err := dhcpv4.NewReplyFromRequest(req, dhcpv4.WithYourIP(ipaddr), dhcpv4.WithLeaseTime(LeaseTime))
-	if err != nil {
-		log.Printf("plugins/file: NewReplyFromRequest failed: %v", err)
-		return resp, true
-	}
-	return reply, false
+	return resp, false
 }
 
 func setupFile6(args ...string) (handler.Handler6, error) {
@@ -265,7 +263,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 	return Handler6, Handler4, nil
 }
-func createIP(serverIP net.IP, netmask net.IP) (Record, bool) {
+func createIP(serverIP net.IP, netmask net.IP) (Record, error) {
 
 	rand.Seed(time.Now().Unix())
 	ipserver := serverIP.To4()
@@ -298,13 +296,13 @@ func createIP(serverIP net.IP, netmask net.IP) (Record, bool) {
 			nextIP[i] = (ip[i] & (mask[i] ^ 255)) | (ipserver[i] & mask[i])
 		}
 		if nextIP[0] != ip[0] || nextIP[1] != ip[1] || nextIP[2] != ip[2] || nextIP[3] != ip[3] {
-			return Record{}, false
+			return Record{}, errors.New("plugins/file: no new IP addresses available")
 		}
 		ip = nextIP
 		taken = checkIfTaken(net.IPv4(ip[0], ip[1], ip[2], ip[3]))
 
 	}
-	return Record{IP: net.IPv4(ip[0], ip[1], ip[2], ip[3]), leaseTime: LeaseTime, leased: time.Now().Unix()}, true
+	return Record{IP: net.IPv4(ip[0], ip[1], ip[2], ip[3]), leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
 
 }
 func random(min int, max int) byte {
