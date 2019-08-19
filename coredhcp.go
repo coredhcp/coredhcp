@@ -177,6 +177,9 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DH
 		log.Printf("MainHandler4: failed to build reply: %v", err)
 		return
 	}
+	if req.OpCode != dhcpv4.OpcodeBootRequest {
+		log.Printf("plugins/server: Not a BootRequest!")
+	}
 
 	resp = tmp
 	for _, handler := range s.Handlers4 {
@@ -187,6 +190,14 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DH
 	}
 
 	if resp != nil {
+		switch mt := req.MessageType(); mt {
+		case dhcpv4.MessageTypeDiscover:
+			resp.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
+		case dhcpv4.MessageTypeRequest:
+			resp.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
+		default:
+			log.Printf("plugins/server: Unhandled message type: %v", mt)
+		}
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
 			peer = &net.UDPAddr{IP: req.GatewayIPAddr, Port: dhcpv4.ServerPort}
