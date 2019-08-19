@@ -179,23 +179,26 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
-		record, err := createIP(serverIP, netmask)
+		rec, err := createIP(serverIP, netmask)
 		if err != nil {
 			log.Error(err)
-			return resp, true
+			return nil, true
 
 		}
-		err = saveIPAddress(record, req.ClientHWAddr)
+		err = saveIPAddress(rec, req.ClientHWAddr)
 		if err != nil {
 			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
 		}
-		DHCPv4Records[req.ClientHWAddr.String()] = record
-
+		DHCPv4Records[req.ClientHWAddr.String()] = rec
+		record = rec
 	}
 	ipaddr := record.IP
 	resp.YourIPAddr = ipaddr
 	dur, _ := time.ParseDuration(strconv.FormatUint(uint64(LeaseTime), 10) + "s")
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(dur))
+	subnet := netmask.To4()
+	resp.UpdateOption(dhcpv4.OptSubnetMask(net.IPv4Mask(subnet[0], subnet[1], subnet[2], subnet[3])))
+	resp.UpdateOption(dhcpv4.OptRouter(serverIP))
 	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	if req == nil {
 		log.Printf("plugins/file: Packet is nil!")
@@ -242,7 +245,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		}
 		serverIP = ip
 
-		netmask = net.IPv4(network.Mask[0], network.Mask[0], network.Mask[0], network.Mask[0])
+		netmask = net.IPv4(network.Mask[0], network.Mask[1], network.Mask[2], network.Mask[3])
 
 		if !checkValidNetmask(netmask) {
 			return Handler6, Handler4, errors.New("plugins/file: netmask is not valid, got: " + args[1])
@@ -310,6 +313,10 @@ func random(min int, max int) byte {
 }
 func checkIfTaken(ip net.IP) bool {
 	taken := false
+	if ip.String() == serverIP.String() {
+		println("IP: %v, ServerIP: %v", ip.String(), serverIP.String())
+		return true
+	}
 	for _, v := range DHCPv4Records {
 		if v.IP.String() == ip.String() && (v.leased+int64(v.leaseTime) > time.Now().Unix()) {
 			taken = true
