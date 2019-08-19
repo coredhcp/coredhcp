@@ -71,7 +71,7 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 			return nil, fmt.Errorf("plugins/file: malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To16() == nil {
+		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("plugins/file: expected an IPv4 address, got: %v", ipaddr)
 		}
 
@@ -246,10 +246,6 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 		netmask = network.Mask
 
-		if !checkValidNetmask(netmask) {
-			return Handler6, Handler4, errors.New("plugins/file: netmask is not valid, got: " + args[1])
-		}
-
 		leaseTime, err := strconv.ParseUint(args[2], 10, 32)
 		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[2])
@@ -348,10 +344,4 @@ func saveRecords(DHCPv4Records map[string]Record) error {
 	}
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
-}
-func checkValidNetmask(netmask net.IPMask) bool {
-	netmaskInt := binary.BigEndian.Uint32(netmask)
-	x := ^netmaskInt
-	y := x + 1
-	return (y & x) == 0
 }
