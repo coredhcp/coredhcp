@@ -11,33 +11,34 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var (
-	dnsServers []net.IP
-)
 var log = logger.GetLogger()
 
 func init() {
-	plugins.RegisterPlugin("DNS", setupDNS6, setupDNS4)
+	plugins.RegisterPlugin("dns", setupDNS6, setupDNS4)
 }
 
+var (
+	dnsServers []net.IP
+)
+
 func setupDNS6(args ...string) (handler.Handler6, error) {
-	log.Printf("plugins/DNS: loaded plugin for DHCPv6.")
+	log.Printf("plugins/dns: loaded plugin for DHCPv6.")
 	return Handler6, nil
 }
 
 func setupDNS4(args ...string) (handler.Handler4, error) {
-	log.Printf("plugins/DNS: loaded plugin for DHCPv4.")
+	log.Printf("plugins/dns: loaded plugin for DHCPv4.")
 	if len(args) < 1 {
-		return nil, errors.New("plugins/DNS: need at least one DNS server")
+		return nil, errors.New("plugins/dns: need at least one DNS server")
 	}
 	for _, arg := range args {
 		DNSServer := net.ParseIP(arg)
 		if DNSServer.To16() == nil {
-			return Handler4, errors.New("plugins/DNS: expected an DNS server address, got: " + arg)
+			return Handler4, errors.New("plugins/dns: expected an DNS server address, got: " + arg)
 		}
 		dnsServers = append(dnsServers, DNSServer)
 	}
-	log.Printf("plugins/DNS: loaded %d DNS servers.", len(dnsServers))
+	log.Printf("plugins/dns: loaded %d DNS servers.", len(dnsServers))
 	return Handler4, nil
 }
 
