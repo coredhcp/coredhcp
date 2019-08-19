@@ -44,7 +44,7 @@ var (
 	LeaseTime     uint32
 	filename      string
 	serverIP      net.IP
-	netmask       net.IP
+	netmask       net.IPMask
 )
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
@@ -196,8 +196,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.YourIPAddr = ipaddr
 	dur, _ := time.ParseDuration(strconv.FormatUint(uint64(LeaseTime), 10) + "s")
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(dur))
-	subnet := netmask.To4()
-	resp.UpdateOption(dhcpv4.OptSubnetMask(net.IPv4Mask(subnet[0], subnet[1], subnet[2], subnet[3])))
+	resp.UpdateOption(dhcpv4.OptSubnetMask(netmask))
 	resp.UpdateOption(dhcpv4.OptRouter(serverIP))
 	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	if req == nil {
@@ -245,7 +244,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		}
 		serverIP = ip
 
-		netmask = net.IPv4(network.Mask[0], network.Mask[1], network.Mask[2], network.Mask[3])
+		netmask = network.Mask
 
 		if !checkValidNetmask(netmask) {
 			return Handler6, Handler4, errors.New("plugins/file: netmask is not valid, got: " + args[1])
@@ -266,14 +265,14 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 	return Handler6, Handler4, nil
 }
-func createIP(serverIP net.IP, netmask net.IP) (Record, error) {
+func createIP(serverIP net.IP, netmask net.IPMask) (Record, error) {
 
 	rand.Seed(time.Now().Unix())
 	ipserver := serverIP.To4()
-	mask := netmask.To4()
+
 	ip := net.IPv4(random(1, 254), random(1, 254), random(1, 254), random(1, 254)).To4()
 	for i := 0; i < 4; i++ {
-		ip[i] = (ip[i] & (mask[i] ^ 255)) | (ipserver[i] & mask[i])
+		ip[i] = (ip[i] & (netmask[i] ^ 255)) | (ipserver[i] & netmask[i])
 	}
 	taken := checkIfTaken(net.IPv4(ip[0], ip[1], ip[2], ip[3]))
 	for taken {
@@ -282,7 +281,7 @@ func createIP(serverIP net.IP, netmask net.IP) (Record, error) {
 		nextIP := make([]byte, 4)
 		binary.BigEndian.PutUint32(ip, ipInt)
 		for i := 0; i < 4; i++ {
-			nextIP[i] = (ip[i] & (mask[i] ^ 255)) | (ipserver[i] & mask[i])
+			nextIP[i] = (ip[i] & (netmask[i] ^ 255)) | (ipserver[i] & netmask[i])
 		}
 		if nextIP[0] != ip[0] || nextIP[1] != ip[1] || nextIP[2] != ip[2] || nextIP[3] != ip[3] {
 			break
@@ -296,7 +295,7 @@ func createIP(serverIP net.IP, netmask net.IP) (Record, error) {
 		nextIP := make([]byte, 4)
 		binary.BigEndian.PutUint32(ip, ipInt)
 		for i := 0; i < 4; i++ {
-			nextIP[i] = (ip[i] & (mask[i] ^ 255)) | (ipserver[i] & mask[i])
+			nextIP[i] = (ip[i] & (netmask[i] ^ 255)) | (ipserver[i] & netmask[i])
 		}
 		if nextIP[0] != ip[0] || nextIP[1] != ip[1] || nextIP[2] != ip[2] || nextIP[3] != ip[3] {
 			return Record{}, errors.New("plugins/file: no new IP addresses available")
@@ -350,8 +349,8 @@ func saveRecords(DHCPv4Records map[string]Record) error {
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
 }
-func checkValidNetmask(netmask net.IP) bool {
-	netmaskInt := binary.BigEndian.Uint32(netmask.To4())
+func checkValidNetmask(netmask net.IPMask) bool {
+	netmaskInt := binary.BigEndian.Uint32(netmask)
 	x := ^netmaskInt
 	y := x + 1
 	return (y & x) == 0
