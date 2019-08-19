@@ -58,6 +58,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	}
 	resp.ServerIPAddr = make(net.IP, net.IPv4len)
 	copy(resp.ServerIPAddr[:], V4ServerID)
+	resp.UpdateOption(dhcpv4.OptServerIdentifier(V4ServerID))
 	return resp, false
 }
 
