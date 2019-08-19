@@ -83,9 +83,11 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
+		//Only if the record is not expired.
 		if (leased + int64(leaseTime)) > time.Now().Unix() {
 			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: uint32(leaseTime), leased: leased}
 		}
+		//Save without expired records.
 		err = saveRecords(records)
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: unable to save records, got: %v", err)
@@ -192,16 +194,12 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		DHCPv4Records[req.ClientHWAddr.String()] = rec
 		record = rec
 	}
-	ipaddr := record.IP
-	resp.YourIPAddr = ipaddr
+	resp.YourIPAddr = record.IP
 	dur, _ := time.ParseDuration(strconv.FormatUint(uint64(LeaseTime), 10) + "s")
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(dur))
 	resp.UpdateOption(dhcpv4.OptSubnetMask(netmask))
 	resp.UpdateOption(dhcpv4.OptRouter(serverIP))
-	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
-	if req == nil {
-		log.Printf("plugins/file: Packet is nil!")
-	}
+	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
 
