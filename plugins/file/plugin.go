@@ -194,8 +194,8 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
-	resp.UpdateOption(dhcpv4.OptSubnetMask((*network).Mask))
-	resp.UpdateOption(dhcpv4.OptRouter((*network).IP))
+	resp.UpdateOption(dhcpv4.OptSubnetMask(network.Mask))
+	resp.UpdateOption(dhcpv4.OptRouter(network.IP))
 	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
@@ -258,14 +258,14 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 func createIP(network *net.IPNet) (Record, error) {
 	ip := []byte{random(1, 254), random(1, 254), random(1, 254), random(1, 254)}
 	for i := 0; i < 4; i++ {
-		ip[i] = (ip[i] & ((*network).Mask[i] ^ 255)) | ((*network).IP[i] & (*network).Mask[i])
+		ip[i] = (ip[i] & (network.Mask[i] ^ 255)) | (network.IP[i] & network.Mask[i])
 	}
 	taken := checkIfTaken(ip)
 	for taken {
 		ipInt := binary.BigEndian.Uint32(ip)
 		ipInt++
 		binary.BigEndian.PutUint32(ip, ipInt)
-		if !(*network).Contains(ip) {
+		if !network.Contains(ip) {
 			break
 		}
 		taken = checkIfTaken(ip)
@@ -274,7 +274,7 @@ func createIP(network *net.IPNet) (Record, error) {
 		ipInt := binary.BigEndian.Uint32(ip)
 		ipInt--
 		binary.BigEndian.PutUint32(ip, ipInt)
-		if !(*network).Contains(ip) {
+		if !network.Contains(ip) {
 			return Record{}, errors.New("plugins/file: no new IP addresses available")
 		}
 		taken = checkIfTaken(ip)
@@ -287,7 +287,7 @@ func random(min int, max int) byte {
 }
 func checkIfTaken(ip net.IP) bool {
 	taken := false
-	if ip.String() == (*network).IP.String() {
+	if ip.String() == network.IP.String() {
 		return true
 	}
 	for _, v := range DHCPv4Records {
@@ -304,7 +304,7 @@ func saveIPAddress(record Record, mac net.HardwareAddr) error {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + strconv.FormatUint(uint64(record.leaseTime), 10) + " " + strconv.FormatInt(record.leased, 10) + "\n")
+	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + strconv.FormatUint(uint64(record.leaseTime.Seconds()), 10) + "s " + strconv.FormatInt(record.leased, 10) + "\n")
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func saveIPAddress(record Record, mac net.HardwareAddr) error {
 func saveRecords(DHCPv4Records map[string]Record) error {
 	records := ""
 	for k, v := range DHCPv4Records {
-		records += k + " " + v.IP.String() + " " + strconv.FormatUint(uint64(v.leaseTime), 10) + " " + strconv.FormatInt(v.leased, 10) + "\n"
+		records += k + " " + v.IP.String() + " " + strconv.FormatUint(uint64(v.leaseTime.Seconds()), 10) + "s " + strconv.FormatInt(v.leased, 10) + "\n"
 	}
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
