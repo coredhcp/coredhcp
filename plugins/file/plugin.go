@@ -29,7 +29,7 @@ func init() {
 //Record holds an IP lease record
 type Record struct {
 	IP        net.IP
-	leaseTime uint32
+	leaseTime time.Duration
 	leased    int64
 }
 
@@ -41,7 +41,7 @@ var StaticRecords map[string]net.IP
 var (
 	DHCPv6Records map[string]net.IP
 	DHCPv4Records map[string]Record
-	LeaseTime     uint32
+	LeaseTime     time.Duration
 	filename      string
 	server        net.IPNet
 )
@@ -74,7 +74,7 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 			return nil, fmt.Errorf("plugins/file: expected an IPv4 address, got: %v", ipaddr)
 		}
 
-		leaseTime, err := strconv.ParseUint(tokens[2], 10, 32)
+		leaseTime, err := time.ParseDuration(tokens[2])
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
@@ -83,8 +83,11 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
 		//Only if the record is not expired.
-		if (leased + int64(leaseTime)) > time.Now().Unix() {
-			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: uint32(leaseTime), leased: leased}
+		println()
+		println(leased)
+
+		if (leased + int64(leaseTime.Seconds())) > time.Now().Unix() {
+			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: leaseTime, leased: leased}
 		}
 		//Save without expired records.
 		err = saveRecords(records)
@@ -239,12 +242,10 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 			return Handler6, Handler4, errors.New("plugins/file: expected an IPv4 address, got: " + args[1])
 		}
 		server = *network
-
-		leaseTime, err := strconv.ParseUint(args[2], 10, 32)
+		LeaseTime, err = time.ParseDuration(args[2])
 		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[2])
 		}
-		LeaseTime = uint32(leaseTime)
 		records, err := LoadDHCPv4Records(filename)
 		if err != nil {
 			return nil, nil, fmt.Errorf("plugins/file: failed to load DHCPv4 records: %v", err)
@@ -295,7 +296,7 @@ func checkIfTaken(ip net.IP) bool {
 		return true
 	}
 	for _, v := range DHCPv4Records {
-		if v.IP.String() == ip.String() && (v.leased+int64(v.leaseTime) > time.Now().Unix()) {
+		if v.IP.String() == ip.String() && (v.leased+int64(v.leaseTime.Seconds()) > time.Now().Unix()) {
 			taken = true
 			break
 		}
