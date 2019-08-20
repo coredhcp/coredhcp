@@ -185,7 +185,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		if err != nil {
 			log.Error(err)
 			return nil, true
-
 		}
 		err = saveIPAddress(rec, req.ClientHWAddr)
 		if err != nil {
@@ -268,7 +267,7 @@ func createIP(serverIP net.IP, netmask net.IPMask) (Record, error) {
 	for i := 0; i < 4; i++ {
 		ip[i] = (ip[i] & (netmask[i] ^ 255)) | (ipserver[i] & netmask[i])
 	}
-	taken := checkIfTaken(net.IPv4(ip[0], ip[1], ip[2], ip[3]))
+	taken := checkIfTaken(ip)
 	for taken {
 		ipInt := binary.BigEndian.Uint32(ip)
 		ipInt++
@@ -281,7 +280,7 @@ func createIP(serverIP net.IP, netmask net.IPMask) (Record, error) {
 			break
 		}
 		ip = nextIP
-		taken = checkIfTaken(net.IPv4(ip[0], ip[1], ip[2], ip[3]))
+		taken = checkIfTaken(ip)
 	}
 	for taken {
 		ipInt := binary.BigEndian.Uint32(ip)
@@ -295,10 +294,10 @@ func createIP(serverIP net.IP, netmask net.IPMask) (Record, error) {
 			return Record{}, errors.New("plugins/file: no new IP addresses available")
 		}
 		ip = nextIP
-		taken = checkIfTaken(net.IPv4(ip[0], ip[1], ip[2], ip[3]))
+		taken = checkIfTaken(ip)
 
 	}
-	return Record{IP: net.IPv4(ip[0], ip[1], ip[2], ip[3]), leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
+	return Record{IP: ip, leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
 
 }
 func random(min int, max int) byte {
