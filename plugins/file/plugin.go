@@ -43,7 +43,7 @@ var (
 	DHCPv4Records map[string]Record
 	LeaseTime     time.Duration
 	filename      string
-	server        net.IPNet
+	network       *net.IPNet
 )
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
@@ -83,9 +83,6 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
 		//Only if the record is not expired.
-		println()
-		println(leased)
-
 		if (leased + int64(leaseTime.Seconds())) > time.Now().Unix() {
 			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: leaseTime, leased: leased}
 		}
@@ -183,7 +180,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
-		rec, err := createIP(server)
+		rec, err := createIP(network)
 		if err != nil {
 			log.Error(err)
 			return nil, true
@@ -196,10 +193,9 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		record = rec
 	}
 	resp.YourIPAddr = record.IP
-	dur, _ := time.ParseDuration(strconv.FormatUint(uint64(LeaseTime), 10) + "s")
-	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(dur))
-	resp.UpdateOption(dhcpv4.OptSubnetMask(server.Mask))
-	resp.UpdateOption(dhcpv4.OptRouter(server.IP))
+	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
+	resp.UpdateOption(dhcpv4.OptSubnetMask((*network).Mask))
+	resp.UpdateOption(dhcpv4.OptRouter((*network).IP))
 	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
@@ -237,11 +233,11 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		if filename == "" {
 			return nil, nil, errors.New("plugins/file: got empty file name")
 		}
-		_, network, err := net.ParseCIDR(args[1])
+		var err error
+		_, network, err = net.ParseCIDR(args[1])
 		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/file: expected an IPv4 address, got: " + args[1])
 		}
-		server = *network
 		LeaseTime, err = time.ParseDuration(args[2])
 		if err != nil {
 			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[2])
@@ -252,24 +248,24 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		}
 		DHCPv4Records = records
 
+		rand.Seed(time.Now().Unix())
+
 		log.Printf("plugins/file: loaded %d leases from %s", len(DHCPv4Records), filename)
 	}
 
 	return Handler6, Handler4, nil
 }
-func createIP(server net.IPNet) (Record, error) {
-
-	rand.Seed(time.Now().Unix())
+func createIP(network *net.IPNet) (Record, error) {
 	ip := []byte{random(1, 254), random(1, 254), random(1, 254), random(1, 254)}
 	for i := 0; i < 4; i++ {
-		ip[i] = (ip[i] & (server.Mask[i] ^ 255)) | (server.IP[i] & server.Mask[i])
+		ip[i] = (ip[i] & ((*network).Mask[i] ^ 255)) | ((*network).IP[i] & (*network).Mask[i])
 	}
 	taken := checkIfTaken(ip)
 	for taken {
 		ipInt := binary.BigEndian.Uint32(ip)
 		ipInt++
 		binary.BigEndian.PutUint32(ip, ipInt)
-		if !server.Contains(ip) {
+		if !(*network).Contains(ip) {
 			break
 		}
 		taken = checkIfTaken(ip)
@@ -278,11 +274,10 @@ func createIP(server net.IPNet) (Record, error) {
 		ipInt := binary.BigEndian.Uint32(ip)
 		ipInt--
 		binary.BigEndian.PutUint32(ip, ipInt)
-		if !server.Contains(ip) {
+		if !(*network).Contains(ip) {
 			return Record{}, errors.New("plugins/file: no new IP addresses available")
 		}
 		taken = checkIfTaken(ip)
-
 	}
 	return Record{IP: ip, leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
 
@@ -292,7 +287,7 @@ func random(min int, max int) byte {
 }
 func checkIfTaken(ip net.IP) bool {
 	taken := false
-	if ip.String() == server.IP.String() {
+	if ip.String() == (*network).IP.String() {
 		return true
 	}
 	for _, v := range DHCPv4Records {
