@@ -79,15 +79,7 @@ func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
-		//Only if the record is not expired. leased + int64(leaseTime.Seconds())
-		if expires > time.Now().Unix() {
-			records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
-		}
-		//Save without expired records.
-		err = saveRecords(records)
-		if err != nil {
-			return nil, fmt.Errorf("plugins/file: unable to save records, got: %v", err)
-		}
+		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
 	}
 	return records, nil
 }
