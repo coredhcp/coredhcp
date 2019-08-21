@@ -189,8 +189,8 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		if err != nil {
 			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
 		}
-		DHCPv4Records[req.ClientHWAddr.String()] = rec
-		record = rec
+		DHCPv4Records[req.ClientHWAddr.String()] = *rec
+		record = *rec
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
@@ -255,7 +255,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 	return Handler6, Handler4, nil
 }
-func createIP(network *net.IPNet) (Record, error) {
+func createIP(network *net.IPNet) (*Record, error) {
 	ip := []byte{random(1, 254), random(1, 254), random(1, 254), random(1, 254)}
 	for i := 0; i < 4; i++ {
 		ip[i] = (ip[i] & (network.Mask[i] ^ 255)) | (network.IP[i] & network.Mask[i])
@@ -275,11 +275,11 @@ func createIP(network *net.IPNet) (Record, error) {
 		ipInt--
 		binary.BigEndian.PutUint32(ip, ipInt)
 		if !network.Contains(ip) {
-			return Record{}, errors.New("plugins/file: no new IP addresses available")
+			return &Record{}, errors.New("plugins/file: no new IP addresses available")
 		}
 		taken = checkIfTaken(ip)
 	}
-	return Record{IP: ip, leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
+	return &Record{IP: ip, leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
 
 }
 func random(min int, max int) byte {
@@ -298,7 +298,7 @@ func checkIfTaken(ip net.IP) bool {
 	}
 	return taken
 }
-func saveIPAddress(record Record, mac net.HardwareAddr) error {
+func saveIPAddress(record *Record, mac net.HardwareAddr) error {
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
