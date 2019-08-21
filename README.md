@@ -25,10 +25,11 @@ server6:
 #server4:
 #    listen: '0.0.0.0:67'
 #    plugins:
-         #- server_id: 10.10.10.1
-         #- file: leases.txt 10.10.10.1/24 60
-         #- dns: 8.8.8.8 8.8.4.4
-         #- router: 10.10.10.1
+        # - server_id: 10.10.10.1
+        # - file: leases.txt 10.10.10.100 10.10.10.200 60s
+        # - dns: 8.8.8.8 8.8.4.4
+        # - router: 10.10.10.1
+        # - netmask: 255.255.255.0
 ```
 
 See also [config.yml.example](cmds/coredhcp/config.yml.example).
