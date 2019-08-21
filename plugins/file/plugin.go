@@ -74,7 +74,6 @@ func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("plugins/file: expected an IPv4 address, got: %v", ipaddr)
 		}
-
 		expires, err := strconv.ParseInt(tokens[2], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
@@ -253,8 +252,6 @@ func createIP(rangeStart net.IP, rangeEnd net.IP) (*Record, error) {
 	ip := make([]byte, 4)
 	rangeStartInt := binary.BigEndian.Uint32(rangeStart.To4())
 	rangeEndInt := binary.BigEndian.Uint32(rangeEnd.To4())
-	bla := random(rangeStartInt, rangeEndInt)
-	println(bla)
 	binary.BigEndian.PutUint32(ip, random(rangeStartInt, rangeEndInt))
 	taken := checkIfTaken(ip)
 	for taken {

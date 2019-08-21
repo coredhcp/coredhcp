@@ -40,11 +40,6 @@ func setupNetmask4(args ...string) (handler.Handler4, error) {
 	if netmaskIP == nil {
 		return nil, errors.New("plugins/file: expected an netmask address, got: " + args[1])
 	}
-	println(netmaskIP.String())
-	println(netmaskIP[0])
-	println(netmaskIP[1])
-	println(netmaskIP[2])
-	println(netmaskIP[3])
 	netmask = net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
 	println(netmask.String())
 	if !checkValidNetmask(netmask) {
