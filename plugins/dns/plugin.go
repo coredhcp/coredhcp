@@ -33,7 +33,7 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 	}
 	for _, arg := range args {
 		DNSServer := net.ParseIP(arg)
-		if DNSServer.To16() == nil {
+		if DNSServer.To4() == nil {
 			return Handler4, errors.New("plugins/dns: expected an DNS server address, got: " + arg)
 		}
 		dnsServers = append(dnsServers, DNSServer)
