@@ -195,7 +195,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
 	resp.UpdateOption(dhcpv4.OptSubnetMask(network.Mask))
-	resp.UpdateOption(dhcpv4.OptRouter(network.IP))
 	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
