@@ -28,9 +28,8 @@ func init() {
 
 //Record holds an IP lease record
 type Record struct {
-	IP        net.IP
-	leaseTime time.Duration
-	leased    int64
+	IP      net.IP
+	expires int64
 }
 
 // StaticRecords holds a MAC -> IP address mapping
@@ -74,17 +73,13 @@ func LoadDHCPv4Records(filename string) (map[string]Record, error) {
 			return nil, fmt.Errorf("plugins/file: expected an IPv4 address, got: %v", ipaddr)
 		}
 
-		leaseTime, err := time.ParseDuration(tokens[2])
+		expires, err := strconv.ParseInt(tokens[2], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
 		}
-		leased, err := strconv.ParseInt(tokens[3], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
-		}
-		//Only if the record is not expired.
-		if (leased + int64(leaseTime.Seconds())) > time.Now().Unix() {
-			records[hwaddr.String()] = Record{IP: ipaddr, leaseTime: leaseTime, leased: leased}
+		//Only if the record is not expired. leased + int64(leaseTime.Seconds())
+		if expires > time.Now().Unix() {
+			records[hwaddr.String()] = Record{IP: ipaddr, expires: expires}
 		}
 		//Save without expired records.
 		err = saveRecords(records)
@@ -185,7 +180,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 			log.Error(err)
 			return nil, true
 		}
-		err = saveIPAddress(rec, req.ClientHWAddr)
+		err = saveIPAddress(req.ClientHWAddr, rec)
 		if err != nil {
 			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
 		}
@@ -278,7 +273,7 @@ func createIP(network *net.IPNet) (*Record, error) {
 		}
 		taken = checkIfTaken(ip)
 	}
-	return &Record{IP: ip, leaseTime: LeaseTime, leased: time.Now().Unix()}, nil
+	return &Record{IP: ip, expires: time.Now().Unix() + int64(LeaseTime.Seconds())}, nil
 
 }
 func random(min int, max int) byte {
@@ -290,20 +285,20 @@ func checkIfTaken(ip net.IP) bool {
 		return true
 	}
 	for _, v := range DHCPv4Records {
-		if v.IP.String() == ip.String() && (v.leased+int64(v.leaseTime.Seconds()) > time.Now().Unix()) {
+		if v.IP.String() == ip.String() && (v.expires > time.Now().Unix()) {
 			taken = true
 			break
 		}
 	}
 	return taken
 }
-func saveIPAddress(record *Record, mac net.HardwareAddr) error {
+func saveIPAddress(mac net.HardwareAddr, record *Record) error {
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + strconv.FormatUint(uint64(record.leaseTime.Seconds()), 10) + "s " + strconv.FormatInt(record.leased, 10) + "\n")
+	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + strconv.FormatInt(record.expires, 10) + "\n")
 	if err != nil {
 		return err
 	}
@@ -317,7 +312,7 @@ func saveIPAddress(record *Record, mac net.HardwareAddr) error {
 func saveRecords(DHCPv4Records map[string]Record) error {
 	records := ""
 	for k, v := range DHCPv4Records {
-		records += k + " " + v.IP.String() + " " + strconv.FormatUint(uint64(v.leaseTime.Seconds()), 10) + "s " + strconv.FormatInt(v.leased, 10) + "\n"
+		records += k + " " + v.IP.String() + " " + strconv.FormatInt(v.expires, 10) + "\n"
 	}
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
