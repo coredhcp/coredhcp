@@ -38,13 +38,13 @@ var StaticRecords map[string]net.IP
 // DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
 // form of a string, to network configurations.
 var (
+	// TODO change DHCPv6Records to Record
 	DHCPv6Records map[string]net.IP
 	DHCPv4Records map[string]*Record
 	LeaseTime     time.Duration
 	filename      string
-	//network       *net.IPNet
-	ipRangeStart net.IP
-	ipRangeEnd   net.IP
+	ipRangeStart  net.IP
+	ipRangeEnd    net.IP
 )
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
