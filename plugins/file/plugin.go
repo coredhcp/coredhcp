@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +28,7 @@ func init() {
 //Record holds an IP lease record
 type Record struct {
 	IP      net.IP
-	expires int64
+	expires time.Time
 }
 
 // StaticRecords holds a MAC -> IP address mapping
@@ -74,9 +73,9 @@ func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		expires, err := strconv.ParseInt(tokens[2], 10, 64)
+		expires, err := time.Parse(time.RFC3339, tokens[2])
 		if err != nil {
-			return nil, fmt.Errorf("expected an uint32, got: %v", ipaddr)
+			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
 		}
 		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
 	}
@@ -272,7 +271,7 @@ func createIP(rangeStart net.IP, rangeEnd net.IP) (*Record, error) {
 		}
 		taken = checkIfTaken(ip)
 	}
-	return &Record{IP: ip, expires: time.Now().Unix() + int64(LeaseTime.Seconds())}, nil
+	return &Record{IP: ip, expires: time.Now().Add(LeaseTime)}, nil
 
 }
 func random(min uint32, max uint32) uint32 {
@@ -281,7 +280,7 @@ func random(min uint32, max uint32) uint32 {
 func checkIfTaken(ip net.IP) bool {
 	taken := false
 	for _, v := range DHCPv4Records {
-		if v.IP.String() == ip.String() && (v.expires > time.Now().Unix()) {
+		if v.IP.String() == ip.String() && (v.expires.After(time.Now())) {
 			taken = true
 			break
 		}
@@ -294,7 +293,7 @@ func saveIPAddress(mac net.HardwareAddr, record *Record) error {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + strconv.FormatInt(record.expires, 10) + "\n")
+	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
 	if err != nil {
 		return err
 	}
@@ -308,7 +307,7 @@ func saveIPAddress(mac net.HardwareAddr, record *Record) error {
 func saveRecords(DHCPv4Records map[string]*Record) error {
 	records := ""
 	for k, v := range DHCPv4Records {
-		records += k + " " + v.IP.String() + " " + strconv.FormatInt(v.expires, 10) + "\n"
+		records += k + " " + v.IP.String() + " " + v.expires.Format(time.RFC3339) + "\n"
 	}
 	err := ioutil.WriteFile(filename, []byte(records), 0644)
 	return err
