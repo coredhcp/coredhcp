@@ -22,7 +22,8 @@ var (
 )
 
 func setupDNS6(args ...string) (handler.Handler6, error) {
-	log.Printf("plugins/dns: loaded plugin for DHCPv6.")
+	// TODO setup function for IPv6
+	log.Warning("plugins/dns: not implemented for IPv6")
 	return Handler6, nil
 }
 
@@ -38,12 +39,13 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 		}
 		dnsServers = append(dnsServers, DNSServer)
 	}
-	log.Printf("plugins/dns: loaded %d DNS servers.", len(dnsServers))
+	log.Infof("plugins/dns: loaded %d DNS servers.", len(dnsServers))
 	return Handler4, nil
 }
 
 // Handler6 not implemented only IPv4
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	// TODO add DNS servers for v6 to the response
 	return resp, false
 }
 

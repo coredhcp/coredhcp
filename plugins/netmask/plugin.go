@@ -23,7 +23,8 @@ var (
 )
 
 func setupNetmask6(args ...string) (handler.Handler6, error) {
-	log.Printf("plugins/netmask: loaded plugin for DHCPv6.")
+	// TODO setup function for IPv6
+	log.Warning("plugins/netmask: not implemented for IPv6")
 	return Handler6, nil
 }
 
@@ -41,7 +42,6 @@ func setupNetmask4(args ...string) (handler.Handler4, error) {
 		return nil, errors.New("plugins/file: expected an netmask address, got: " + args[1])
 	}
 	netmask = net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
-	println(netmask.String())
 	if !checkValidNetmask(netmask) {
 		return nil, errors.New("plugins/file: netmask is not valid, got: " + args[1])
 	}
@@ -51,6 +51,7 @@ func setupNetmask4(args ...string) (handler.Handler4, error) {
 
 // Handler6 not implemented only IPv4
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	// TODO add IPv6 netmask to the response
 	return resp, false
 }
 

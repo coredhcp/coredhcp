@@ -22,7 +22,8 @@ var (
 )
 
 func setupRouter6(args ...string) (handler.Handler6, error) {
-	log.Printf("plugins/router: loaded plugin for DHCPv6.")
+	// TODO setup function for IPv6
+	log.Warning("plugins/router: not implemented for IPv6")
 	return Handler6, nil
 }
 
@@ -38,12 +39,13 @@ func setupRouter4(args ...string) (handler.Handler4, error) {
 		}
 		routers = append(routers, router)
 	}
-	log.Printf("plugins/router: loaded %d router IP addresses.", len(routers))
+	log.Infof("plugins/router: loaded %d router IP addresses.", len(routers))
 	return Handler4, nil
 }
 
 // Handler6 not implemented only IPv4
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	// TODO add router IPv6 addresses to the response
 	return resp, false
 }
 
