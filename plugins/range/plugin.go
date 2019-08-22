@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -89,19 +90,24 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the range plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	log.Printf("plugins/range: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
-	record, err := createIP(ipRangeStart, ipRangeEnd)
-	if err != nil {
-		log.Error(err)
-		return nil, true
-	}
-	err = updateRecords(req.ClientHWAddr, record)
-	if err != nil {
-		log.Printf("plugins/range: could not update records: %v", err)
+	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
+	if !ok {
+		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
+		rec, err := createIP(ipRangeStart, ipRangeEnd)
+		if err != nil {
+			log.Error(err)
+			return nil, true
+		}
+		err = saveIPAddress(req.ClientHWAddr, rec)
+		if err != nil {
+			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
+		}
+		DHCPv4Records[req.ClientHWAddr.String()] = rec
+		record = rec
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
-	log.Printf("plugins/range: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
 
@@ -196,17 +202,19 @@ func checkIfTaken(ip net.IP) bool {
 	}
 	return taken
 }
-func updateRecords(mac net.HardwareAddr, record *Record) error {
-	var err error
-	DHCPv4Records, err = LoadDHCPv4Records(filename)
+func saveIPAddress(mac net.HardwareAddr, record *Record) error {
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
-	DHCPv4Records[mac.String()] = record
-	records := ""
-	for k, v := range DHCPv4Records {
-		records += k + " " + v.IP.String() + " " + v.expires.Format(time.RFC3339) + "\n"
+	defer f.Close()
+	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
+	if err != nil {
+		return err
 	}
-	err = ioutil.WriteFile(filename, []byte(records), 0644)
-	return err
+	err = f.Sync()
+	if err != nil {
+		return err
+	}
+	return nil
 }
