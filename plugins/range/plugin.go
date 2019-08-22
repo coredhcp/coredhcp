@@ -1,0 +1,212 @@
+package rangePlugin
+
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/logger"
+	"github.com/coredhcp/coredhcp/plugins"
+	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/dhcpv6"
+)
+
+var log = logger.GetLogger()
+
+func init() {
+	plugins.RegisterPlugin("range", setupRange6, setupRange4)
+}
+
+//Record holds an IP lease record
+type Record struct {
+	IP      net.IP
+	expires time.Time
+}
+
+// StaticRecords holds a MAC -> IP address mapping
+var StaticRecords map[string]net.IP
+
+// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
+// form of a string, to network configurations.
+var (
+	// TODO change DHCPv6Records to Record
+	DHCPv6Records map[string]net.IP
+	DHCPv4Records map[string]*Record
+	LeaseTime     time.Duration
+	filename      string
+	ipRangeStart  net.IP
+	ipRangeEnd    net.IP
+)
+
+// LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
+// the specified file. The records have to be one per line, a mac address and an
+// IPv4 address.
+func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
+	log.Printf("plugins/range: reading leases from %s", filename)
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	records := make(map[string]*Record)
+	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
+		line := string(lineBytes)
+		if len(line) == 0 {
+			continue
+		}
+		tokens := strings.Fields(line)
+		if len(tokens) != 3 {
+			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
+		}
+		hwaddr, err := net.ParseMAC(tokens[0])
+		if err != nil {
+			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+		}
+		ipaddr := net.ParseIP(tokens[1])
+		if ipaddr.To4() == nil {
+			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
+		}
+		expires, err := time.Parse(time.RFC3339, tokens[2])
+		if err != nil {
+			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
+		}
+		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
+	}
+	return records, nil
+}
+
+// Handler6 handles DHCPv6 packets for the file plugin
+func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	// TODO add IPv6 netmask to the response
+	return resp, false
+}
+
+// Handler4 handles DHCPv4 packets for the range plugin
+func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	log.Printf("plugins/range: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
+	record, err := createIP(ipRangeStart, ipRangeEnd)
+	if err != nil {
+		log.Error(err)
+		return nil, true
+	}
+	err = updateRecords(req.ClientHWAddr, record)
+	if err != nil {
+		log.Printf("plugins/range: could not update records: %v", err)
+	}
+	resp.YourIPAddr = record.IP
+	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
+	log.Printf("plugins/range: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	return resp, false
+}
+
+func setupRange6(args ...string) (handler.Handler6, error) {
+	// TODO setup function for IPv6
+	log.Warning("plugins/range: not implemented for IPv6")
+	return Handler6, nil
+}
+
+func setupRange4(args ...string) (handler.Handler4, error) {
+	_, h4, err := setupRange(false, args...)
+	return h4, err
+}
+
+func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
+	if v6 {
+
+	} else {
+		if len(args) < 4 {
+			return nil, nil, errors.New("need a file name, server IP, netmask and a lease time")
+		}
+		filename = args[0]
+		if filename == "" {
+			return nil, nil, errors.New("got empty file name")
+		}
+		ipRangeStart = net.ParseIP(args[1])
+		if ipRangeStart.To4() == nil {
+			return nil, nil, errors.New("expected an IP address, got: " + args[1])
+		}
+		ipRangeEnd = net.ParseIP(args[2])
+		if ipRangeEnd.To4() == nil {
+			return nil, nil, errors.New("expected an IP address, got: " + args[2])
+		}
+		if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
+			return nil, nil, errors.New("start of IP range has to be lower than the end fo an IP range")
+		}
+		var err error
+		LeaseTime, err = time.ParseDuration(args[3])
+		if err != nil {
+			return Handler6, Handler4, errors.New("expected an uint32, got: " + args[3])
+		}
+		records, err := LoadDHCPv4Records(filename)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
+		}
+		DHCPv4Records = records
+
+		rand.Seed(time.Now().Unix())
+
+		log.Printf("plugins/range: loaded %d leases from %s", len(DHCPv4Records), filename)
+	}
+
+	return Handler6, Handler4, nil
+}
+func createIP(rangeStart net.IP, rangeEnd net.IP) (*Record, error) {
+	ip := make([]byte, 4)
+	rangeStartInt := binary.BigEndian.Uint32(rangeStart.To4())
+	rangeEndInt := binary.BigEndian.Uint32(rangeEnd.To4())
+	binary.BigEndian.PutUint32(ip, random(rangeStartInt, rangeEndInt))
+	taken := checkIfTaken(ip)
+	for taken {
+		ipInt := binary.BigEndian.Uint32(ip)
+		ipInt++
+		binary.BigEndian.PutUint32(ip, ipInt)
+		if ipInt > rangeEndInt {
+			break
+		}
+		taken = checkIfTaken(ip)
+	}
+	for taken {
+		ipInt := binary.BigEndian.Uint32(ip)
+		ipInt--
+		binary.BigEndian.PutUint32(ip, ipInt)
+		if ipInt < rangeStartInt {
+			return &Record{}, errors.New("no new IP addresses available")
+		}
+		taken = checkIfTaken(ip)
+	}
+	return &Record{IP: ip, expires: time.Now().Add(LeaseTime)}, nil
+
+}
+func random(min uint32, max uint32) uint32 {
+	return uint32(rand.Intn(int(max-min))) + min
+}
+func checkIfTaken(ip net.IP) bool {
+	taken := false
+	for _, v := range DHCPv4Records {
+		if v.IP.String() == ip.String() && (v.expires.After(time.Now())) {
+			taken = true
+			break
+		}
+	}
+	return taken
+}
+func updateRecords(mac net.HardwareAddr, record *Record) error {
+	var err error
+	DHCPv4Records, err = LoadDHCPv4Records(filename)
+	if err != nil {
+		return err
+	}
+	DHCPv4Records[mac.String()] = record
+	records := ""
+	for k, v := range DHCPv4Records {
+		records += k + " " + v.IP.String() + " " + v.expires.Format(time.RFC3339) + "\n"
+	}
+	err = ioutil.WriteFile(filename, []byte(records), 0644)
+	return err
+}
