@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
@@ -22,43 +21,34 @@ func init() {
 	plugins.RegisterPlugin("file", setupFile6, setupFile4)
 }
 
-//Record holds an IP lease record
-type Record struct {
-	IP      net.IP
-	expires time.Time
-}
-
 // StaticRecords holds a MAC -> IP address mapping
 var StaticRecords map[string]net.IP
 
 // DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
 // form of a string, to network configurations.
 var (
-	// TODO change DHCPv6Records to Record
 	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]*Record
-	LeaseTime     time.Duration
-	filename      string
+	DHCPv4Records map[string]net.IP
 )
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
+func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 	log.Printf("plugins/file: reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]*Record)
+	records := make(map[string]net.IP)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
 			continue
 		}
 		tokens := strings.Fields(line)
-		if len(tokens) != 3 {
-			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
+		if len(tokens) != 2 {
+			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
@@ -68,12 +58,9 @@ func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		expires, err := time.Parse(time.RFC3339, tokens[2])
-		if err != nil {
-			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
-		}
-		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
+		records[hwaddr.String()] = ipaddr
 	}
+
 	return records, nil
 }
 
@@ -95,15 +82,15 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line: %s", line)
+			return nil, fmt.Errorf("plugins/file: malformed line: %s", line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("plugins/file: malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
 		if ipaddr.To16() == nil {
-			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
+			return nil, fmt.Errorf("plugins/file: expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
 	}
@@ -159,26 +146,13 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	var err error
-	DHCPv4Records, err = LoadDHCPv4Records(filename)
-	if err != nil {
-		log.Error(err)
-		return nil, true
-	}
-	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
+	ipaddr, ok := DHCPv4Records[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("plugins/file: MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
 	}
-	record.expires = time.Now().Add(LeaseTime)
-	err = updateRecords(req.ClientHWAddr, record)
-	if err != nil {
-		log.Error(err)
-		return nil, true
-	}
-	resp.YourIPAddr = record.IP
-	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
-	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	resp.YourIPAddr = ipaddr
+	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	return resp, true
 }
 
@@ -208,17 +182,12 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
 		StaticRecords = records
 	} else {
-		if len(args) < 2 {
-			return nil, nil, errors.New("need a file name and a lease time")
+		if len(args) < 1 {
+			return nil, nil, errors.New("need a file name")
 		}
-		filename = args[0]
+		filename := args[0]
 		if filename == "" {
 			return nil, nil, errors.New("got empty file name")
-		}
-		var err error
-		LeaseTime, err = time.ParseDuration(args[1])
-		if err != nil {
-			return Handler6, Handler4, errors.New("expected an uint32, got: " + args[1])
 		}
 		records, err := LoadDHCPv4Records(filename)
 		if err != nil {
@@ -230,19 +199,4 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	}
 
 	return Handler6, Handler4, nil
-}
-
-func updateRecords(mac net.HardwareAddr, record *Record) error {
-	var err error
-	DHCPv4Records, err = LoadDHCPv4Records(filename)
-	if err != nil {
-		return err
-	}
-	DHCPv4Records[mac.String()] = record
-	records := ""
-	for k, v := range DHCPv4Records {
-		records += k + " " + v.IP.String() + " " + v.expires.Format(time.RFC3339) + "\n"
-	}
-	err = ioutil.WriteFile(filename, []byte(records), 0644)
-	return err
 }
