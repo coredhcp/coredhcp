@@ -276,7 +276,7 @@ func createIP(rangeStart net.IP, rangeEnd net.IP) (*Record, error) {
 
 }
 func random(min uint32, max uint32) uint32 {
-	return rand.Uint32()%(max-min+1) + min
+	return uint32(rand.Intn(int(max-min))) + min
 }
 func checkIfTaken(ip net.IP) bool {
 	taken := false
