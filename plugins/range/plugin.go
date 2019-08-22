@@ -1,4 +1,4 @@
-package rangePlugin
+package rangeplugin
 
 import (
 	"bytes"
