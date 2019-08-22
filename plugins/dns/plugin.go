@@ -30,12 +30,12 @@ func setupDNS6(args ...string) (handler.Handler6, error) {
 func setupDNS4(args ...string) (handler.Handler4, error) {
 	log.Printf("plugins/dns: loaded plugin for DHCPv4.")
 	if len(args) < 1 {
-		return nil, errors.New("plugins/dns: need at least one DNS server")
+		return nil, errors.New("need at least one DNS server")
 	}
 	for _, arg := range args {
 		DNSServer := net.ParseIP(arg)
 		if DNSServer.To4() == nil {
-			return Handler4, errors.New("plugins/dns: expected an DNS server address, got: " + arg)
+			return Handler4, errors.New("expected an DNS server address, got: " + arg)
 		}
 		dnsServers = append(dnsServers, DNSServer)
 	}
@@ -49,7 +49,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	return resp, false
 }
 
-//Handler4 handles DHCPv4 packets for the file plugin
+//Handler4 handles DHCPv4 packets for the dns plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptDNS(dnsServers...))
 	return resp, false

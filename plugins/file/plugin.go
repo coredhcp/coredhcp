@@ -64,19 +64,19 @@ func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 3 {
-			return nil, fmt.Errorf("plugins/file: malformed line: %s", line)
+			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
-			return nil, fmt.Errorf("plugins/file: malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
 		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("plugins/file: expected an IPv4 address, got: %v", ipaddr)
+			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
 		expires, err := strconv.ParseInt(tokens[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("plugins/file: expected an uint32, got: %v", ipaddr)
+			return nil, fmt.Errorf("expected an uint32, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
 	}
@@ -101,15 +101,15 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
-			return nil, fmt.Errorf("plugins/file: malformed line: %s", line)
+			return nil, fmt.Errorf("malformed line: %s", line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
-			return nil, fmt.Errorf("plugins/file: malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
 		if ipaddr.To16() == nil {
-			return nil, fmt.Errorf("plugins/file: expected an IPv6 address, got: %v", ipaddr)
+			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
 	}
@@ -199,45 +199,45 @@ func setupFile4(args ...string) (handler.Handler4, error) {
 func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
 	if v6 {
 		if len(args) < 1 {
-			return nil, nil, errors.New("plugins/file: need a file name")
+			return nil, nil, errors.New("need a file name")
 		}
 		filename := args[0]
 		if filename == "" {
-			return nil, nil, errors.New("plugins/file: got empty file name")
+			return nil, nil, errors.New("got empty file name")
 		}
 		records, err := LoadDHCPv6Records(filename)
 		if err != nil {
-			return nil, nil, fmt.Errorf("plugins/file: failed to load DHCPv6 records: %v", err)
+			return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
 		}
 		log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
 		StaticRecords = records
 	} else {
 		if len(args) < 4 {
-			return nil, nil, errors.New("plugins/file: need a file name, server IP, netmask and a lease time")
+			return nil, nil, errors.New("need a file name, server IP, netmask and a lease time")
 		}
 		filename = args[0]
 		if filename == "" {
-			return nil, nil, errors.New("plugins/file: got empty file name")
+			return nil, nil, errors.New("got empty file name")
 		}
 		ipRangeStart = net.ParseIP(args[1])
 		if ipRangeStart.To4() == nil {
-			return nil, nil, errors.New("plugins/file: expected an IP address, got: " + args[1])
+			return nil, nil, errors.New("expected an IP address, got: " + args[1])
 		}
 		ipRangeEnd = net.ParseIP(args[2])
 		if ipRangeEnd.To4() == nil {
-			return nil, nil, errors.New("plugins/file: expected an IP address, got: " + args[2])
+			return nil, nil, errors.New("expected an IP address, got: " + args[2])
 		}
 		if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
-			return nil, nil, errors.New("plugins/file: start of IP range has to be lower than the end fo an IP range")
+			return nil, nil, errors.New("start of IP range has to be lower than the end fo an IP range")
 		}
 		var err error
 		LeaseTime, err = time.ParseDuration(args[3])
 		if err != nil {
-			return Handler6, Handler4, errors.New("plugins/file: expected an uint32, got: " + args[3])
+			return Handler6, Handler4, errors.New("expected an uint32, got: " + args[3])
 		}
 		records, err := LoadDHCPv4Records(filename)
 		if err != nil {
-			return nil, nil, fmt.Errorf("plugins/file: failed to load DHCPv4 records: %v", err)
+			return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
 		}
 		DHCPv4Records = records
 
@@ -268,7 +268,7 @@ func createIP(rangeStart net.IP, rangeEnd net.IP) (*Record, error) {
 		ipInt--
 		binary.BigEndian.PutUint32(ip, ipInt)
 		if ipInt < rangeStartInt {
-			return &Record{}, errors.New("plugins/file: no new IP addresses available")
+			return &Record{}, errors.New("no new IP addresses available")
 		}
 		taken = checkIfTaken(ip)
 	}
