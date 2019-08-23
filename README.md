@@ -29,7 +29,7 @@ server6:
         # - dns: 8.8.8.8 8.8.4.4
         # - router: 10.10.10.1
         # - netmask: 255.255.255.0
-        # - file: leases.txt
+        # - range: leases.txt 10.10.10.100 10.10.10.200 60s
 ```
 
 See also [config.yml.example](cmds/coredhcp/config.yml.example).
