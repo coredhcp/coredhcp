@@ -23,7 +23,13 @@ server6:
         # - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
 
 #server4:
-#    listen: '127.0.0.1:67'
+#    listen: '0.0.0.0:67'
+#    plugins:
+        # - server_id: 10.10.10.1
+        # - dns: 8.8.8.8 8.8.4.4
+        # - router: 10.10.10.1
+        # - netmask: 255.255.255.0
+        # - range: leases.txt 10.10.10.100 10.10.10.200 60s
 ```
 
 See also [config.yml.example](cmds/coredhcp/config.yml.example).
