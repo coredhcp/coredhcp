@@ -146,7 +146,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	ipaddr, ok := DHCPv4Records[req.ClientHWAddr.String()]
+	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("plugins/file: MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
@@ -167,36 +167,24 @@ func setupFile4(args ...string) (handler.Handler4, error) {
 }
 
 func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
-	if v6 {
-		if len(args) < 1 {
-			return nil, nil, errors.New("need a file name")
-		}
-		filename := args[0]
-		if filename == "" {
-			return nil, nil, errors.New("got empty file name")
-		}
-		records, err := LoadDHCPv6Records(filename)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
-		}
-		log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
-		StaticRecords = records
-	} else {
-		if len(args) < 1 {
-			return nil, nil, errors.New("need a file name")
-		}
-		filename := args[0]
-		if filename == "" {
-			return nil, nil, errors.New("got empty file name")
-		}
-		records, err := LoadDHCPv4Records(filename)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
-		}
-		DHCPv4Records = records
-
-		log.Printf("plugins/file: loaded %d leases from %s", len(DHCPv4Records), filename)
+	var err error
+	var records map[string]net.IP
+	if len(args) < 1 {
+		return nil, nil, errors.New("plugins/file: need a file name")
 	}
-
+	filename := args[0]
+	if filename == "" {
+		return nil, nil, errors.New("plugins/file: got empty file name")
+	}
+	if v6 {
+		records, err = LoadDHCPv6Records(filename)
+	} else {
+		records, err = LoadDHCPv4Records(filename)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
+	}
+	StaticRecords = records
+	log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
 	return Handler6, Handler4, nil
 }
