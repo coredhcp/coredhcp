@@ -31,20 +31,28 @@ type Record struct {
 	expires time.Time
 }
 
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
+// Records holds a MAC -> IP address and lease time mapping
+var Records map[string]*Record
 
 // DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
 // form of a string, to network configurations.
 var (
 	// TODO change DHCPv6Records to Record
-	DHCPv6Records map[string]net.IP
+	DHCPv6Records map[string]*Record
 	DHCPv4Records map[string]*Record
 	LeaseTime     time.Duration
 	filename      string
 	ipRangeStart  net.IP
 	ipRangeEnd    net.IP
 )
+
+// LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
+// the specified file. The records have to be one per line, a mac address and an
+// IPv6 address.
+func LoadDHCPv6Records(filename string) (map[string]*Record, error) {
+	// TODO load function for IPv6
+	return nil, errors.New("not implemented for IPv6")
+}
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
@@ -90,7 +98,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the range plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	record, ok := DHCPv4Records[req.ClientHWAddr.String()]
+	record, ok := Records[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
 		rec, err := createIP(ipRangeStart, ipRangeEnd)
@@ -102,7 +110,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		if err != nil {
 			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
 		}
-		DHCPv4Records[req.ClientHWAddr.String()] = rec
+		Records[req.ClientHWAddr.String()] = rec
 		record = rec
 	}
 	resp.YourIPAddr = record.IP
@@ -126,8 +134,9 @@ func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	if v6 {
 
 	} else {
+		var err error
 		if len(args) < 4 {
-			return nil, nil, errors.New("need a file name, server IP, netmask and a lease time")
+			return nil, nil, errors.New("need a file name, start of the IP range, end og the IP range and a lease time")
 		}
 		filename = args[0]
 		if filename == "" {
@@ -144,20 +153,21 @@ func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 		if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
 			return nil, nil, errors.New("start of IP range has to be lower than the end fo an IP range")
 		}
-		var err error
 		LeaseTime, err = time.ParseDuration(args[3])
 		if err != nil {
 			return Handler6, Handler4, errors.New("expected an uint32, got: " + args[3])
 		}
-		records, err := LoadDHCPv4Records(filename)
+		if v6 {
+			Records, err = LoadDHCPv6Records(filename)
+		} else {
+			Records, err = LoadDHCPv4Records(filename)
+		}
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
 		}
-		DHCPv4Records = records
-
 		rand.Seed(time.Now().Unix())
 
-		log.Printf("plugins/range: loaded %d leases from %s", len(DHCPv4Records), filename)
+		log.Printf("plugins/range: loaded %d leases from %s", len(Records), filename)
 	}
 
 	return Handler6, Handler4, nil
@@ -194,7 +204,7 @@ func random(min uint32, max uint32) uint32 {
 }
 func checkIfTaken(ip net.IP) bool {
 	taken := false
-	for _, v := range DHCPv4Records {
+	for _, v := range Records {
 		if v.IP.String() == ip.String() && (v.expires.After(time.Now())) {
 			taken = true
 			break
