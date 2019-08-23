@@ -131,44 +131,40 @@ func setupRange4(args ...string) (handler.Handler4, error) {
 }
 
 func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
-	if v6 {
-
-	} else {
-		var err error
-		if len(args) < 4 {
-			return nil, nil, errors.New("need a file name, start of the IP range, end og the IP range and a lease time")
-		}
-		filename = args[0]
-		if filename == "" {
-			return nil, nil, errors.New("got empty file name")
-		}
-		ipRangeStart = net.ParseIP(args[1])
-		if ipRangeStart.To4() == nil {
-			return nil, nil, errors.New("expected an IP address, got: " + args[1])
-		}
-		ipRangeEnd = net.ParseIP(args[2])
-		if ipRangeEnd.To4() == nil {
-			return nil, nil, errors.New("expected an IP address, got: " + args[2])
-		}
-		if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
-			return nil, nil, errors.New("start of IP range has to be lower than the end fo an IP range")
-		}
-		LeaseTime, err = time.ParseDuration(args[3])
-		if err != nil {
-			return Handler6, Handler4, errors.New("expected an uint32, got: " + args[3])
-		}
-		if v6 {
-			Records, err = LoadDHCPv6Records(filename)
-		} else {
-			Records, err = LoadDHCPv4Records(filename)
-		}
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
-		}
-		rand.Seed(time.Now().Unix())
-
-		log.Printf("plugins/range: loaded %d leases from %s", len(Records), filename)
+	var err error
+	if len(args) < 4 {
+		return nil, nil, errors.New("need a file name, start of the IP range, end og the IP range and a lease time")
 	}
+	filename = args[0]
+	if filename == "" {
+		return nil, nil, errors.New("got empty file name")
+	}
+	ipRangeStart = net.ParseIP(args[1])
+	if ipRangeStart.To4() == nil {
+		return nil, nil, errors.New("expected an IP address, got: " + args[1])
+	}
+	ipRangeEnd = net.ParseIP(args[2])
+	if ipRangeEnd.To4() == nil {
+		return nil, nil, errors.New("expected an IP address, got: " + args[2])
+	}
+	if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
+		return nil, nil, errors.New("start of IP range has to be lower than the end fo an IP range")
+	}
+	LeaseTime, err = time.ParseDuration(args[3])
+	if err != nil {
+		return Handler6, Handler4, errors.New("expected an uint32, got: " + args[3])
+	}
+	if v6 {
+		Records, err = LoadDHCPv6Records(filename)
+	} else {
+		Records, err = LoadDHCPv4Records(filename)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load DHCPv4 records: %v", err)
+	}
+	rand.Seed(time.Now().Unix())
+
+	log.Printf("plugins/range: loaded %d leases from %s", len(Records), filename)
 
 	return Handler6, Handler4, nil
 }
