@@ -3,6 +3,7 @@ package logger
 import (
 	"sync"
 
+	log_prefixed "github.com/chappjc/logrus-prefix"
 	"github.com/sirupsen/logrus"
 )
 
@@ -12,15 +13,18 @@ var (
 )
 
 // GetLogger returns a configured logger instance
-func GetLogger() *logrus.Logger {
+func GetLogger(prefix string) *logrus.Entry {
+	if prefix == "" {
+		prefix = "<no prefix>"
+	}
 	if globalLogger == nil {
 		getLoggerMutex.Lock()
 		defer getLoggerMutex.Unlock()
 		logger := logrus.New()
-		logger.SetFormatter(&logrus.TextFormatter{
+		logger.SetFormatter(&log_prefixed.TextFormatter{
 			FullTimestamp: true,
 		})
 		globalLogger = logger
 	}
-	return globalLogger
+	return globalLogger.WithField("prefix", prefix)
 }

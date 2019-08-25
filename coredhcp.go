@@ -15,7 +15,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6/server6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("coredhcp")
 
 // Server is a CoreDHCP server structure that holds information about
 // DHCPv6 and DHCPv4 servers, and their respective handlers.

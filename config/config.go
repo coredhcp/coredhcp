@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("config")
 
 type protocolVersion int
 

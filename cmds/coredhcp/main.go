@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	logger := logger.GetLogger()
+	logger := logger.GetLogger("main")
 	config, err := config.Load()
 	if err != nil {
 		logger.Fatal(err)
