@@ -100,7 +100,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	record, ok := Records[req.ClientHWAddr.String()]
 	if !ok {
-		log.Printf("plugins/file: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
+		log.Printf("plugins/range: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
 		rec, err := createIP(ipRangeStart, ipRangeEnd)
 		if err != nil {
 			log.Error(err)
@@ -108,14 +108,14 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		}
 		err = saveIPAddress(req.ClientHWAddr, rec)
 		if err != nil {
-			log.Printf("plugins/file: SaveIPAddress failed: %v", err)
+			log.Printf("plugins/range: SaveIPAddress failed: %v", err)
 		}
 		Records[req.ClientHWAddr.String()] = rec
 		record = rec
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
-	log.Printf("plugins/file: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	log.Printf("plugins/range: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
 
