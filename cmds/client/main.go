@@ -14,7 +14,7 @@ import (
 	"github.com/insomniacslk/dhcp/iana"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("main")
 
 func main() {
 	flag.Parse()

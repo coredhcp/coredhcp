@@ -17,7 +17,7 @@ import (
 // `logger.GetLogger()` to get a singleton instance of the logger. Then just use
 // it with the `logrus` interface (https://github.com/sirupsen/logrus). More
 // information in the docstring of the logger package.
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/example")
 
 // In the main package, you need to register your plugin at import time. To do
 // this, just do a blank import of this package, e.g.
@@ -56,14 +56,14 @@ func init() {
 // packet that the server receives. Remember that a handler may not be called
 // for each packet, if the handler chain is interrupted before reaching it.
 func setupExample6(args ...string) (handler.Handler6, error) {
-	log.Printf("plugins/example: loaded plugin for DHCPv6.")
+	log.Printf("loaded plugin for DHCPv6.")
 	return exampleHandler6, nil
 }
 
 // setupExample4 behaves like setupExample6, but for DHCPv4 packets. It
 // implements the `plugin.SetupFunc4` interface.
 func setupExample4(args ...string) (handler.Handler4, error) {
-	log.Printf("plugins/example: loaded plugin for DHCPv4.")
+	log.Printf("loaded plugin for DHCPv4.")
 	return exampleHandler4, nil
 }
 
@@ -81,7 +81,7 @@ func setupExample4(args ...string) (handler.Handler4, error) {
 // will call the next plugin in the chan, using the returned response packet as
 // input for the next plugin.
 func exampleHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
-	log.Printf("plugins/example: received DHCPv6 packet: %s", req.Summary())
+	log.Printf("received DHCPv6 packet: %s", req.Summary())
 	// return the unmodified response, and false. This means that the next
 	// plugin in the chain will be called, and the unmodified response packet
 	// will be used as its input.
@@ -91,7 +91,7 @@ func exampleHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 // exampleHandler4 behaves like exampleHandler6, but for DHCPv4 packets. It
 // implements the `handler.Handler4` interface.
 func exampleHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	log.Printf("plugins/example: received DHCPv4 packet: %s", req.Summary())
+	log.Printf("received DHCPv4 packet: %s", req.Summary())
 	// return the unmodified response, and false. This means that the next
 	// plugin in the chain will be called, and the unmodified response packet
 	// will be used as its input.

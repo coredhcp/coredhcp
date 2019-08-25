@@ -11,7 +11,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/router")
 
 func init() {
 	plugins.RegisterPlugin("router", setupRouter6, setupRouter4)
@@ -23,12 +23,12 @@ var (
 
 func setupRouter6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
-	log.Warning("plugins/router: not implemented for IPv6")
+	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
 func setupRouter4(args ...string) (handler.Handler4, error) {
-	log.Printf("plugins/router: loaded plugin for DHCPv4.")
+	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one router IP address")
 	}
@@ -39,7 +39,7 @@ func setupRouter4(args ...string) (handler.Handler4, error) {
 		}
 		routers = append(routers, router)
 	}
-	log.Infof("plugins/router: loaded %d router IP addresses.", len(routers))
+	log.Infof("loaded %d router IP addresses.", len(routers))
 	return Handler4, nil
 }
 

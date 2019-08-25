@@ -5,7 +5,7 @@ import (
 	"github.com/coredhcp/coredhcp/logger"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins")
 
 // Plugin represents a plugin object.
 // Setup6 and Setup4 are the setup functions for DHCPv6 and DHCPv4 handlers

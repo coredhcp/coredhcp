@@ -15,7 +15,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/file")
 
 func init() {
 	plugins.RegisterPlugin("file", setupFile6, setupFile4)
@@ -35,7 +35,7 @@ var (
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
-	log.Printf("plugins/file: reading leases from %s", filename)
+	log.Printf("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
 func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
-	log.Printf("plugins/file: reading leases from %s", filename)
+	log.Printf("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -82,15 +82,15 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
-			return nil, fmt.Errorf("plugins/file: malformed line: %s", line)
+			return nil, fmt.Errorf("malformed line: %s", line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
-			return nil, fmt.Errorf("plugins/file: malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
 		if ipaddr.To16() == nil {
-			return nil, fmt.Errorf("plugins/file: expected an IPv6 address, got: %v", ipaddr)
+			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
 	}
@@ -103,14 +103,14 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	if err != nil {
 		return nil, false
 	}
-	log.Printf("plugins/file: looking up an IP address for MAC %s", mac.String())
+	log.Printf("looking up an IP address for MAC %s", mac.String())
 
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
-		log.Warningf("plugins/file: MAC address %s is unknown", mac.String())
+		log.Warningf("MAC address %s is unknown", mac.String())
 		return nil, false
 	}
-	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Printf("found IP address %s for MAC %s", ipaddr, mac.String())
 	resp.AddOption(&dhcpv6.OptIANA{
 		// FIXME copy this field from the client, reject/drop if missing
 		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
@@ -148,11 +148,11 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
-		log.Warningf("plugins/file: MAC address %s is unknown", req.ClientHWAddr.String())
+		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
 	}
 	resp.YourIPAddr = ipaddr
-	log.Printf("plugins/file: found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
+	log.Printf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	return resp, true
 }
 
@@ -170,11 +170,11 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	var err error
 	var records map[string]net.IP
 	if len(args) < 1 {
-		return nil, nil, errors.New("plugins/file: need a file name")
+		return nil, nil, errors.New("need a file name")
 	}
 	filename := args[0]
 	if filename == "" {
-		return nil, nil, errors.New("plugins/file: got empty file name")
+		return nil, nil, errors.New("got empty file name")
 	}
 	if v6 {
 		records, err = LoadDHCPv6Records(filename)
@@ -185,6 +185,6 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
 	}
 	StaticRecords = records
-	log.Printf("plugins/file: loaded %d leases from %s", len(records), filename)
+	log.Printf("loaded %d leases from %s", len(records), filename)
 	return Handler6, Handler4, nil
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/netmask")
 
 func init() {
 	plugins.RegisterPlugin("netmask", setupNetmask6, setupNetmask4)
@@ -24,12 +24,12 @@ var (
 
 func setupNetmask6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
-	log.Warning("plugins/netmask: not implemented for IPv6")
+	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
 func setupNetmask4(args ...string) (handler.Handler4, error) {
-	log.Printf("plugins/netmask: loaded plugin for DHCPv4.")
+	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) != 1 {
 		return nil, errors.New("need at least one netmask IP address")
 	}
@@ -45,7 +45,7 @@ func setupNetmask4(args ...string) (handler.Handler4, error) {
 	if !checkValidNetmask(netmask) {
 		return nil, errors.New("netmask is not valid, got: " + args[1])
 	}
-	log.Printf("plugins/netmask: loaded client netmask")
+	log.Printf("loaded client netmask")
 	return Handler4, nil
 }
 

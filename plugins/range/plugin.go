@@ -19,7 +19,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/range")
 
 func init() {
 	plugins.RegisterPlugin("range", setupRange6, setupRange4)
@@ -58,7 +58,7 @@ func LoadDHCPv6Records(filename string) (map[string]*Record, error) {
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]*Record, error) {
-	log.Printf("plugins/range: reading leases from %s", filename)
+	log.Printf("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	record, ok := Records[req.ClientHWAddr.String()]
 	if !ok {
-		log.Printf("plugins/range: MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
+		log.Printf("MAC address %s is new, leasing new IP address", req.ClientHWAddr.String())
 		rec, err := createIP(ipRangeStart, ipRangeEnd)
 		if err != nil {
 			log.Error(err)
@@ -108,20 +108,20 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		}
 		err = saveIPAddress(req.ClientHWAddr, rec)
 		if err != nil {
-			log.Printf("plugins/range: SaveIPAddress failed: %v", err)
+			log.Printf("SaveIPAddress failed: %v", err)
 		}
 		Records[req.ClientHWAddr.String()] = rec
 		record = rec
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
-	log.Printf("plugins/range: found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	log.Printf("found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
 }
 
 func setupRange6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
-	log.Warning("plugins/range: not implemented for IPv6")
+	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
@@ -164,7 +164,7 @@ func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	}
 	rand.Seed(time.Now().Unix())
 
-	log.Printf("plugins/range: loaded %d leases from %s", len(Records), filename)
+	log.Printf("loaded %d leases from %s", len(Records), filename)
 
 	return Handler6, Handler4, nil
 }

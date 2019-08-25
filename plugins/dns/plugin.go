@@ -11,7 +11,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger("plugins/dns")
 
 func init() {
 	plugins.RegisterPlugin("dns", setupDNS6, setupDNS4)
@@ -23,12 +23,12 @@ var (
 
 func setupDNS6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
-	log.Warning("plugins/dns: not implemented for IPv6")
+	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
 func setupDNS4(args ...string) (handler.Handler4, error) {
-	log.Printf("plugins/dns: loaded plugin for DHCPv4.")
+	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
 	}
@@ -39,7 +39,7 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 		}
 		dnsServers = append(dnsServers, DNSServer)
 	}
-	log.Infof("plugins/dns: loaded %d DNS servers.", len(dnsServers))
+	log.Infof("loaded %d DNS servers.", len(dnsServers))
 	return Handler4, nil
 }
 
