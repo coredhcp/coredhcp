@@ -1,26 +1,24 @@
+// Package file enables static mapping of MAC <--> IP addresses.
+// The mapping is stored in a text file, where each mapping is described by one line containing
+// two fields separated by spaces: MAC address, and IP address. For example:
+//
+//  $ cat file_leases.txt
+//  00:11:22:33:44:55 10.0.0.1
+//  01:23:45:67:89:01 10.0.10.10
+//
+// To specify the plugin configuration in the server6/server4 sections of the config file, just
+// pass the leases file name as plugin argument, e.g.:
+//
+//  $ cat config.yml
+//
+//  server6:
+//     ...
+//     plugins:
+//       - file: "file_leases.txt"
+//     ...
+//
+// If the file path is not absolute, it is relative to the cwd where coredhcp is run.
 package file
-
-/*
-The `file` plugin enables static mapping of MAC <--> IP addresses.
-The mapping is stored in a text file, where each mapping is described by one line containing
-two fields separated by spaces: MAC address, and IP address. For example:
-
-$ cat file_leases.txt
-00:11:22:33:44:55 10.0.0.1
-01:23:45:67:89:01 10.0.10.10
-
-To specify the plugin configuration in the server6/server4 sections of the config file, just
-pass the leases file name as plugin argument, e.g.:
-
-$ cat config.yml
-server6:
-    ...
-    plugins:
-      - file: "file_leases.txt"
-    ...
-
-If the file path is not absolute, it is relative to the cwd where coredhcp is run.
-*/
 
 import (
 	"bytes"
