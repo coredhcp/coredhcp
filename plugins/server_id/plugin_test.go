@@ -18,7 +18,7 @@ func TestRejectBadServerIDV6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	V6ServerID = makeTestDUID("0000000000000000")
+	v6ServerID = makeTestDUID("0000000000000000")
 
 	req.MessageType = dhcpv6.MessageTypeRebind
 	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
