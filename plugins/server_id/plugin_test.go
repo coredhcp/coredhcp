@@ -37,3 +37,33 @@ func TestRejectBadServerIDV6(t *testing.T) {
 		t.Error("server_id did not interrupt processing on a request with mismatched ServerID")
 	}
 }
+
+func TestAddServerIDV6(t *testing.T) {
+	req, err := dhcpv6.NewMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v6ServerID = makeTestDUID("0000000000000000")
+
+	req.MessageType = dhcpv6.MessageTypeRebind
+	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
+
+	stub, err := dhcpv6.NewReplyFromMessage(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, _ := Handler6(req, stub)
+	if resp == nil {
+		t.Fatal("plugin did not return an answer")
+	}
+
+	if opt := resp.GetOneOption(dhcpv6.OptionServerID); opt == nil {
+		t.Fatal("plugin did not add a ServerID option")
+	} else {
+		sid := opt.(*dhcpv6.OptServerId)
+		if !sid.Sid.Equal(*v6ServerID) {
+			t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, sid.Sid)
+		}
+	}
+}
