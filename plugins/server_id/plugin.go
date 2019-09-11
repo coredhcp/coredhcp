@@ -33,7 +33,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	if opt := req.GetOneOption(dhcpv6.OptionServerID); opt != nil {
 		sid := opt.(*dhcpv6.OptServerId)
 		if !sid.Sid.Equal(*V6ServerID) {
-			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid.Sid, V6ServerID)
+			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid.Sid, *V6ServerID)
+			return nil, true
 		}
 	}
 	dhcpv6.WithServerID(*V6ServerID)(resp)
