@@ -149,7 +149,13 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			net.ParseIP("2001:4860:4860::4444"),
 		},
 	})
-	if oro := req.GetOption(dhcpv6.OptionORO); len(oro) > 0 {
+
+	decap, err := req.GetInnerMessage()
+	if err != nil {
+		log.Errorf("Could not decapsulate: %v", err)
+		return nil, true
+	}
+	if oro := decap.GetOption(dhcpv6.OptionORO); len(oro) > 0 {
 		for _, code := range oro[0].(*dhcpv6.OptRequestedOption).RequestedOptions() {
 			if code == dhcpv6.OptionBootfileURL {
 				// bootfile URL is requested
