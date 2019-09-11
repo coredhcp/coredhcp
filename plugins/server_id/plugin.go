@@ -31,12 +31,20 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		log.Fatal("BUG: Plugin is running uninitialized!")
 		return resp, false
 	}
-	if opt := req.GetOneOption(dhcpv6.OptionServerID); opt != nil {
+
+	msg, err := req.GetInnerMessage()
+	if err != nil {
+		// BUG: this should already have failed in the main handler. Abort
+		log.Error(err)
+		return nil, true
+	}
+
+	if opt := msg.GetOneOption(dhcpv6.OptionServerID); opt != nil {
 		// RFC8415 §16.{2,5,7}
 		// These message types MUST be discarded if they contain *any* ServerID option
-		if req.Type() == dhcpv6.MessageTypeSolicit ||
-			req.Type() == dhcpv6.MessageTypeConfirm ||
-			req.Type() == dhcpv6.MessageTypeRebind {
+		if msg.Type() == dhcpv6.MessageTypeSolicit ||
+			msg.Type() == dhcpv6.MessageTypeConfirm ||
+			msg.Type() == dhcpv6.MessageTypeRebind {
 			return nil, true
 		}
 
@@ -49,10 +57,10 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	} else {
 		// RFC8415 §16.{6,8,10,11}
 		// These message types MUST be discarded if they *don't* contain a ServerID option
-		if req.Type() == dhcpv6.MessageTypeRequest ||
-			req.Type() == dhcpv6.MessageTypeRenew ||
-			req.Type() == dhcpv6.MessageTypeDecline ||
-			req.Type() == dhcpv6.MessageTypeRelease {
+		if msg.Type() == dhcpv6.MessageTypeRequest ||
+			msg.Type() == dhcpv6.MessageTypeRenew ||
+			msg.Type() == dhcpv6.MessageTypeDecline ||
+			msg.Type() == dhcpv6.MessageTypeRelease {
 			return nil, true
 		}
 	}

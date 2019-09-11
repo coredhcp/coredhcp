@@ -1,6 +1,7 @@
 package serverid
 
 import (
+	"net"
 	"testing"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
@@ -90,5 +91,35 @@ func TestAddServerIDV6(t *testing.T) {
 		if !sid.Sid.Equal(*v6ServerID) {
 			t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, sid.Sid)
 		}
+	}
+}
+
+func TestRejectInnerMessageServerID(t *testing.T) {
+	req, err := dhcpv6.NewMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v6ServerID = makeTestDUID("0000000000000000")
+
+	req.MessageType = dhcpv6.MessageTypeSolicit
+	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
+	dhcpv6.WithServerID(*makeTestDUID("0000000000000000"))(req)
+
+	stub, err := dhcpv6.NewAdvertiseFromSolicit(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	relayedRequest, err := dhcpv6.EncapsulateRelay(req, dhcpv6.MessageTypeRelayForward, net.IPv6loopback, net.IPv6loopback)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, stop := Handler6(relayedRequest, stub)
+	if resp != nil {
+		t.Error("server_id is sending a response message to a relayed solicit with a ServerID")
+	}
+	if !stop {
+		t.Error("server_id did not interrupt processing on a relayed solicit with a ServerID")
 	}
 }
