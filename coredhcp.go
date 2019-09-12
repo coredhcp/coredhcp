@@ -141,6 +141,10 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 			break
 		}
 	}
+	if resp == nil {
+		log.Print("MainHandler6: dropping request because response is nil")
+		return
+	}
 
 	// if the request was relayed, re-encapsulate the response
 	if req.IsRelay() {
@@ -152,12 +156,8 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 		resp = tmp
 	}
 
-	if resp != nil {
-		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
-			log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
-		}
-	} else {
-		log.Print("MainHandler6: dropping request because response is nil")
+	if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
+		log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
 	}
 }
 
