@@ -29,7 +29,7 @@ var (
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	if v6ServerID == nil {
 		log.Fatal("BUG: Plugin is running uninitialized!")
-		return resp, false
+		return nil, true
 	}
 
 	msg, err := req.GetInnerMessage()
@@ -70,8 +70,9 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the server_id plugin.
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	if v4ServerID == nil || resp == nil {
-		return resp, false
+	if v4ServerID == nil {
+		log.Fatal("BUG: Plugin is running uninitialized!")
+		return nil, true
 	}
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		log.Warningf("not a BootRequest, ignoring")
