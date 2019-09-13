@@ -121,14 +121,15 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	mac, err := dhcpv6.ExtractMAC(req)
 	if err != nil {
-		return nil, false
+		log.Warningf("Could not find client MAC, passing")
+		return resp, false
 	}
 	log.Printf("looking up an IP address for MAC %s", mac.String())
 
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
-		return nil, false
+		return resp, false
 	}
 	log.Printf("found IP address %s for MAC %s", ipaddr, mac.String())
 	resp.AddOption(&dhcpv6.OptIANA{
@@ -167,6 +168,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			}
 		}
 	}
+	// XXX: We should maybe allow other plugins to run after this to add other options/handle non-IANA requests
 	return resp, true
 }
 
