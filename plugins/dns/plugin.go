@@ -55,12 +55,22 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 
 // Handler6 handles DHCPv6 packets for the dns plugin
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
-	resp.UpdateOption(&dhcpv6.OptDNSRecursiveNameServer{NameServers: dnsServers6})
+	decap, err := req.GetInnerMessage()
+	if err != nil {
+		log.Errorf("Could not decapsulate relayed message, aborting: %v", err)
+		return nil, true
+	}
+
+	if decap.IsOptionRequested(dhcpv6.OptionDNSRecursiveNameServer) {
+		resp.UpdateOption(&dhcpv6.OptDNSRecursiveNameServer{NameServers: dnsServers6})
+	}
 	return resp, false
 }
 
 //Handler4 handles DHCPv4 packets for the dns plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
+	if req.IsOptionRequested(dhcpv4.OptionDomainNameServer) {
+		resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
+	}
 	return resp, false
 }
