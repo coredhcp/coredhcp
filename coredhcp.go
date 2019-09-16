@@ -162,7 +162,7 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 }
 
 // MainHandler4 is like MainHandler6, but for DHCPv4 packets.
-func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DHCPv4) {
+func (s *Server) MainHandler4(conn net.PacketConn, _peer net.Addr, req *dhcpv4.DHCPv4) {
 	var (
 		resp, tmp *dhcpv4.DHCPv4
 		err       error
@@ -196,16 +196,31 @@ func (s *Server) MainHandler4(conn net.PacketConn, peer net.Addr, req *dhcpv4.DH
 	}
 
 	if resp != nil {
+		var peer net.Addr
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
 			peer = &net.UDPAddr{IP: req.GatewayIPAddr, Port: dhcpv4.ServerPort}
+		} else if resp.MessageType() == dhcpv4.MessageTypeNak {
+			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+		} else if !req.ClientIPAddr.IsUnspecified() {
+			peer = &net.UDPAddr{IP: req.ClientIPAddr, Port: dhcpv4.ClientPort}
+		} else if req.IsBroadcast() {
+			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+		} else {
+			// FIXME: we're supposed to unicast to a specific *L2* address, and an L3
+			// address that's not yet assigned.
+			// I don't know how to do that with this API...
+			//peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
+			log.Warn("Cannot handle non-broadcast-capable unspecified peers in an RFC-compliant way. " +
+				"Response will be broadcast")
+
+			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		}
-		if req.ClientIPAddr.IsUnspecified() {
-			peer = &net.UDPAddr{IP: net.IPv4(255, 255, 255, 255), Port: dhcpv4.ClientPort}
-		}
+
 		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 		}
+
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
 	}
