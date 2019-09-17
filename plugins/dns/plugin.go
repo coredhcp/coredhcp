@@ -18,12 +18,22 @@ func init() {
 }
 
 var (
-	dnsServers []net.IP
+	dnsServers6 []net.IP
+	dnsServers4 []net.IP
 )
 
 func setupDNS6(args ...string) (handler.Handler6, error) {
-	// TODO setup function for IPv6
-	log.Warning("not implemented for IPv6")
+	if len(args) < 1 {
+		return nil, errors.New("need at least one DNS server")
+	}
+	for _, arg := range args {
+		server := net.ParseIP(arg)
+		if server.To16() == nil {
+			return Handler6, errors.New("expected an DNS server address, got: " + arg)
+		}
+		dnsServers6 = append(dnsServers6, server)
+	}
+	log.Infof("loaded %d DNS servers.", len(dnsServers6))
 	return Handler6, nil
 }
 
@@ -37,20 +47,30 @@ func setupDNS4(args ...string) (handler.Handler4, error) {
 		if DNSServer.To4() == nil {
 			return Handler4, errors.New("expected an DNS server address, got: " + arg)
 		}
-		dnsServers = append(dnsServers, DNSServer)
+		dnsServers4 = append(dnsServers4, DNSServer)
 	}
-	log.Infof("loaded %d DNS servers.", len(dnsServers))
+	log.Infof("loaded %d DNS servers.", len(dnsServers4))
 	return Handler4, nil
 }
 
-// Handler6 not implemented only IPv4
+// Handler6 handles DHCPv6 packets for the dns plugin
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
-	// TODO add DNS servers for v6 to the response
+	decap, err := req.GetInnerMessage()
+	if err != nil {
+		log.Errorf("Could not decapsulate relayed message, aborting: %v", err)
+		return nil, true
+	}
+
+	if decap.IsOptionRequested(dhcpv6.OptionDNSRecursiveNameServer) {
+		resp.UpdateOption(&dhcpv6.OptDNSRecursiveNameServer{NameServers: dnsServers6})
+	}
 	return resp, false
 }
 
 //Handler4 handles DHCPv4 packets for the dns plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	resp.Options.Update(dhcpv4.OptDNS(dnsServers...))
+	if req.IsOptionRequested(dhcpv4.OptionDomainNameServer) {
+		resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
+	}
 	return resp, false
 }

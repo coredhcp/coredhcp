@@ -143,13 +143,6 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			},
 		},
 	})
-	resp.AddOption(&dhcpv6.OptDNSRecursiveNameServer{
-		NameServers: []net.IP{
-			// FIXME this must be read from the config file
-			net.ParseIP("2001:4860:4860::8888"),
-			net.ParseIP("2001:4860:4860::4444"),
-		},
-	})
 
 	decap, err := req.GetInnerMessage()
 	if err != nil {
