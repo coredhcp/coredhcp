@@ -1,3 +1,7 @@
+// Copyright 2018-present the CoreDHCP Authors. All rights reserved
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
 // Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
 // two fields separated by spaces: MAC address, and IP address. For example:
