@@ -103,6 +103,10 @@ func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, []*plugins
 	return loadedPlugins6, loadedPlugins4, nil
 }
 
+// BUG(Natolumin): Servers not bound to a specific interface may send responses
+// on the wrong interface as they will use the default route.
+// See https://github.com/coredhcp/coredhcp/issues/52
+
 // MainHandler6 runs for every received DHCPv6 packet. It will run every
 // registered handler in sequence, and reply with the resulting response.
 // It will not reply if the resulting response is `nil`.
