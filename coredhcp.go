@@ -27,8 +27,8 @@ type Server struct {
 	Handlers6 []handler.Handler6
 	Handlers4 []handler.Handler4
 	Config    *config.Config
-	Server6   *server6.Server
-	Server4   *server4.Server
+	Servers6  []*server6.Server
+	Servers4  []*server4.Server
 	errors    chan error
 }
 
@@ -240,25 +240,33 @@ func (s *Server) Start() error {
 
 	// listen
 	if s.Config.Server6 != nil {
-		log.Printf("Starting DHCPv6 listener on %v", s.Config.Server6.Listener)
-		s.Server6, err = server6.NewServer(s.Config.Server6.Interface, s.Config.Server6.Listener, s.MainHandler6)
-		if err != nil {
-			return err
+		log.Println("Starting DHCPv6 server")
+		for _, l := range s.Config.Server6.Addresses {
+			s6, err := server6.NewServer(l.Zone, l, s.MainHandler6)
+			if err != nil {
+				return err
+			}
+			s.Servers6 = append(s.Servers6, s6)
+			log.Infof("Listen %s", l)
+			go func() {
+				s.errors <- s6.Serve()
+			}()
 		}
-		go func() {
-			s.errors <- s.Server6.Serve()
-		}()
 	}
 
 	if s.Config.Server4 != nil {
-		log.Printf("Starting DHCPv4 listener on %v", s.Config.Server4.Listener)
-		s.Server4, err = server4.NewServer(s.Config.Server4.Interface, s.Config.Server4.Listener, s.MainHandler4)
-		if err != nil {
-			return err
+		log.Println("Starting DHCPv4 server")
+		for _, l := range s.Config.Server4.Addresses {
+			s4, err := server4.NewServer(l.Zone, l, s.MainHandler4)
+			if err != nil {
+				return err
+			}
+			s.Servers4 = append(s.Servers4, s4)
+			log.Infof("Listen %s", l)
+			go func() {
+				s.errors <- s4.Serve()
+			}()
 		}
-		go func() {
-			s.errors <- s.Server4.Serve()
-		}()
 	}
 
 	return nil
@@ -268,11 +276,15 @@ func (s *Server) Start() error {
 func (s *Server) Wait() error {
 	log.Print("Waiting")
 	err := <-s.errors
-	if s.Server6 != nil {
-		s.Server6.Close()
+	for _, s6 := range s.Servers6 {
+		if s6 != nil {
+			s6.Close()
+		}
 	}
-	if s.Server4 != nil {
-		s.Server4.Close()
+	for _, s4 := range s.Servers4 {
+		if s4 != nil {
+			s4.Close()
+		}
 	}
 	return err
 }

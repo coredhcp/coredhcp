@@ -41,8 +41,7 @@ func New() *Config {
 // ServerConfig holds a server configuration that is specific to either the
 // DHCPv6 server or the DHCPv4 server.
 type ServerConfig struct {
-	Listener  *net.UDPAddr
-	Interface string
+	Addresses []*net.UDPAddr
 	Plugins   []*PluginConfig
 }
 
@@ -136,12 +135,11 @@ func splitHostPort(hostport string) (ip string, zone string, port string, err er
 	return
 }
 
-func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
+func (c *Config) getListenAddress(addr string, ver protocolVersion) (*net.UDPAddr, error) {
 	if err := protoVersionCheck(ver); err != nil {
 		return nil, err
 	}
 
-	addr := c.v.GetString(fmt.Sprintf("server%d.listen", ver))
 	ipStr, ifname, portStr, err := splitHostPort(addr)
 	if err != nil {
 		return nil, ConfigErrorFromString("dhcpv%d: %v", ver, err)
@@ -154,13 +152,15 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 			ip = net.IPv4zero
 		case protocolV6:
 			ip = net.IPv6unspecified
+		default:
+			panic("BUG: Unknown protocol version")
 		}
 	}
 	if ip == nil {
 		return nil, ConfigErrorFromString("dhcpv%d: invalid IP address in `listen` directive: %s", ver, ipStr)
 	}
 	if ip4 := ip.To4(); (ver == protocolV6 && ip4 != nil) || (ver == protocolV4 && ip4 == nil) {
-		return nil, ConfigErrorFromString("dhcpv%d: not a valid IPv%d address in `listen` directive", ver, ver)
+		return nil, ConfigErrorFromString("dhcpv%d: not a valid IPv%d address in `listen` directive: '%s'", ver, ver, ipStr)
 	}
 
 	var port int
@@ -170,11 +170,13 @@ func (c *Config) getListenAddress(ver protocolVersion) (*net.UDPAddr, error) {
 			port = dhcpv4.ServerPort
 		case protocolV6:
 			port = dhcpv6.DefaultServerPort
+		default:
+			panic("BUG: Unknown protocol version")
 		}
 	} else {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
-			return nil, ConfigErrorFromString("dhcpv%d: invalid `listen` port", ver)
+			return nil, ConfigErrorFromString("dhcpv%d: invalid `listen` port '%s'", ver, portStr)
 		}
 	}
 
@@ -205,16 +207,6 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		// it is valid to have no server configuration defined
 		return nil
 	}
-	listenAddr, err := c.getListenAddress(ver)
-	if err != nil {
-		return err
-	}
-	if listenAddr == nil {
-		// no listener is configured, so `c.Server6` (or `c.Server4` if v4)
-		// will stay nil.
-		log.Warnf("DHCPv%d: server%d present but no listen address defined. The server will not be started", ver, ver)
-		return nil
-	}
 	// read plugin configuration
 	plugins, err := c.getPlugins(ver)
 	if err != nil {
@@ -223,9 +215,24 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 	for _, p := range plugins {
 		log.Printf("DHCPv%d: found plugin `%s` with %d args: %v", ver, p.Name, len(p.Args), p.Args)
 	}
+
+	listen := c.v.Get(fmt.Sprintf("server%d.listen", ver))
+	addrs, err := cast.ToStringSliceE(listen)
+	if err != nil {
+		addrs = []string{cast.ToString(listen)}
+	}
+
+	listeners := []*net.UDPAddr{}
+	for _, a := range addrs {
+		listenAddr, err := c.getListenAddress(a, ver)
+		if err != nil {
+			return err
+		}
+		listeners = append(listeners, listenAddr)
+	}
+
 	sc := ServerConfig{
-		Listener:  listenAddr,
-		Interface: listenAddr.Zone,
+		Addresses: listeners,
 		Plugins:   plugins,
 	}
 	if ver == protocolV6 {
