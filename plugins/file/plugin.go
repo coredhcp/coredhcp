@@ -165,8 +165,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			}
 		}
 	}
-	// XXX: We should maybe allow other plugins to run after this to add other options/handle non-IANA requests
-	return resp, true
+	return resp, false
 }
 
 // Handler4 handles DHCPv4 packets for the file plugin
