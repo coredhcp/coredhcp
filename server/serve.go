@@ -24,11 +24,13 @@ var log = logger.GetLogger("server")
 
 type listener6 struct {
 	*ipv6.PacketConn
+	net.Interface
 	handlers []handler.Handler6
 }
 
 type listener4 struct {
 	*ipv4.PacketConn
+	net.Interface
 	handlers []handler.Handler4
 }
 
@@ -56,6 +58,15 @@ func listen4(a *net.UDPAddr) (*listener4, error) {
 		if err != nil {
 			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
 		}
+		l4.Interface = *ifi
+	} else {
+
+		// When not bound to an interface, we need the information in each
+		// packet to know which interface it came on
+		err = l4.SetControlMessage(ipv4.FlagInterface, true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if a.IP.IsMulticast() {
@@ -79,6 +90,14 @@ func listen6(a *net.UDPAddr) (*listener6, error) {
 		ifi, err = net.InterfaceByName(a.Zone)
 		if err != nil {
 			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
+		}
+		l6.Interface = *ifi
+	} else {
+		// When not bound to an interface, we need the information in each
+		// packet to know which interface it came on
+		err = l6.SetControlMessage(ipv6.FlagInterface, true)
+		if err != nil {
+			return nil, err
 		}
 	}
 
