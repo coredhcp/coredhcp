@@ -18,4 +18,5 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
+	golang.org/x/net v0.0.0-20190930134127-c5a3c61f89f3
 )

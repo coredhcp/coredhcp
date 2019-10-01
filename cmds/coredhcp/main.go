@@ -89,8 +89,8 @@ func main() {
 	}
 
 	// start server
-	srv := server.NewServer(config)
-	if err := srv.Start(); err != nil {
+	srv, err := server.Start(config)
+	if err != nil {
 		log.Fatal(err)
 	}
 	if err := srv.Wait(); err != nil {
