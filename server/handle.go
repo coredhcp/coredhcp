@@ -16,10 +16,6 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-// BUG(Natolumin): Servers not bound to a specific interface may send responses
-// on the wrong interface as they will use the default route.
-// See https://github.com/coredhcp/coredhcp/issues/52
-
 // HandleMsg6 runs for every received DHCPv6 packet. It will run every
 // registered handler in sequence, and reply with the resulting response.
 // It will not reply if the resulting response is `nil`.
@@ -84,7 +80,20 @@ func (l *listener6) HandleMsg6(buf []byte, oob *ipv6.ControlMessage, peer *net.U
 		}
 	}
 
-	if _, err := l.WriteTo(resp.ToBytes(), nil, peer); err != nil {
+	var woob *ipv6.ControlMessage
+	if peer.IP.IsLinkLocalUnicast() {
+		// LL need to be directed to the correct interface. Globally reachable
+		// addresses should use the default route, in case of asymetric routing.
+		switch {
+		case l.Interface.Index != 0:
+			woob = &ipv6.ControlMessage{IfIndex: l.Interface.Index}
+		case oob != nil && oob.IfIndex != 0:
+			woob = &ipv6.ControlMessage{IfIndex: oob.IfIndex}
+		default:
+			log.Errorf("HandleMsg6: Did not receive interface information")
+		}
+	}
+	if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
 		log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
 	}
 }
@@ -131,7 +140,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 	}
 
 	if resp != nil {
-		var peer net.Addr
+		var peer *net.UDPAddr
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
 			peer = &net.UDPAddr{IP: req.GatewayIPAddr, Port: dhcpv4.ServerPort}
@@ -152,7 +161,21 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		}
 
-		if _, err := l.WriteTo(resp.ToBytes(), nil, peer); err != nil {
+		var woob *ipv4.ControlMessage
+		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() {
+			// Direct broadcasts and link-local to the interface the request was
+			// received on. Other packets should use the normal routing table in
+			// case of asymetric routing
+			switch {
+			case l.Interface.Index != 0:
+				woob = &ipv4.ControlMessage{IfIndex: l.Interface.Index}
+			case oob != nil && oob.IfIndex != 0:
+				woob = &ipv4.ControlMessage{IfIndex: oob.IfIndex}
+			default:
+				log.Errorf("HandleMsg4: Did not receive interface information")
+			}
+		}
+		if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 		}
 
