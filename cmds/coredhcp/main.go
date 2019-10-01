@@ -10,9 +10,10 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/coredhcp/coredhcp"
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/coredhcp/coredhcp/server"
+
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/coredhcp/coredhcp/plugins/dns"
 	"github.com/coredhcp/coredhcp/plugins/file"
@@ -88,12 +89,12 @@ func main() {
 	}
 
 	// start server
-	server := coredhcp.NewServer(config)
-	if err := server.Start(); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	srv := server.NewServer(config)
+	if err := srv.Start(); err != nil {
+		log.Fatal(err)
 	}
-	if err := server.Wait(); err != nil {
-		log.Error(err)
+	if err := srv.Wait(); err != nil {
+		log.Print(err)
 	}
 	time.Sleep(time.Second)
 }
