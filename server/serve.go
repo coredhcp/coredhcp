@@ -5,7 +5,15 @@
 package server
 
 import (
+	"fmt"
+	"io"
+	"net"
+
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
+
 	"github.com/coredhcp/coredhcp/config"
+	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
@@ -14,68 +22,139 @@ import (
 
 var log = logger.GetLogger("server")
 
+type listener6 struct {
+	*ipv6.PacketConn
+	handlers []handler.Handler6
+}
+
+type listener4 struct {
+	*ipv4.PacketConn
+	handlers []handler.Handler4
+}
+
+type listener interface {
+	io.Closer
+}
+
+// Servers contains state for a running server (with possibly multiple interfaces/listeners)
+type Servers struct {
+	listeners []listener
+	errors    chan error
+}
+
+func listen4(a *net.UDPAddr) (*listener4, error) {
+	var err error
+	l4 := listener4{}
+	udpConn, err := server4.NewIPv4UDPConn(a.Zone, a)
+	if err != nil {
+		return nil, err
+	}
+	l4.PacketConn = ipv4.NewPacketConn(udpConn)
+	var ifi *net.Interface
+	if a.Zone != "" {
+		ifi, err = net.InterfaceByName(a.Zone)
+		if err != nil {
+			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
+		}
+	}
+
+	if a.IP.IsMulticast() {
+		err = l4.JoinGroup(ifi, a)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &l4, nil
+}
+
+func listen6(a *net.UDPAddr) (*listener6, error) {
+	l6 := listener6{}
+	udpconn, err := server6.NewIPv6UDPConn(a.Zone, a)
+	if err != nil {
+		return nil, err
+	}
+	l6.PacketConn = ipv6.NewPacketConn(udpconn)
+	var ifi *net.Interface
+	if a.Zone != "" {
+		ifi, err = net.InterfaceByName(a.Zone)
+		if err != nil {
+			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
+		}
+	}
+
+	if a.IP.IsMulticast() {
+		err = l6.JoinGroup(ifi, a)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &l6, nil
+}
+
 // Start will start the server asynchronously. See `Wait` to wait until
 // the execution ends.
-func (s *Server) Start() error {
-	var err error
-
-	s.Handlers4, s.Handlers6, err = plugins.LoadPlugins(s.Config)
+func Start(config *config.Config) (*Servers, error) {
+	handlers4, handlers6, err := plugins.LoadPlugins(config)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	srv := Servers{
+		errors: make(chan error),
 	}
 
 	// listen
-	if s.Config.Server6 != nil {
+	if config.Server6 != nil {
 		log.Println("Starting DHCPv6 server")
-		for _, l := range s.Config.Server6.Addresses {
-			s6, err := server6.NewServer(l.Zone, l, s.MainHandler6)
+		for _, addr := range config.Server6.Addresses {
+			var l6 *listener6
+			l6, err = listen6(addr)
 			if err != nil {
-				return err
+				goto cleanup
 			}
-			s.Servers6 = append(s.Servers6, s6)
-			log.Infof("Listen %s", l)
+			l6.handlers = handlers6
+			srv.listeners = append(srv.listeners, l6)
 			go func() {
-				s.errors <- s6.Serve()
+				srv.errors <- l6.Serve()
 			}()
 		}
 	}
 
-	if s.Config.Server4 != nil {
+	if config.Server4 != nil {
 		log.Println("Starting DHCPv4 server")
-		for _, l := range s.Config.Server4.Addresses {
-			s4, err := server4.NewServer(l.Zone, l, s.MainHandler4)
+		for _, addr := range config.Server4.Addresses {
+			var l4 *listener4
+			l4, err = listen4(addr)
 			if err != nil {
-				return err
+				goto cleanup
 			}
-			s.Servers4 = append(s.Servers4, s4)
-			log.Infof("Listen %s", l)
+			l4.handlers = handlers4
+			srv.listeners = append(srv.listeners, l4)
 			go func() {
-				s.errors <- s4.Serve()
+				srv.errors <- l4.Serve()
 			}()
 		}
 	}
 
-	return nil
+	return &srv, nil
+
+cleanup:
+	srv.Close()
+	return nil, err
 }
 
 // Wait waits until the end of the execution of the server.
-func (s *Server) Wait() error {
-	log.Print("Waiting")
+func (s *Servers) Wait() error {
+	log.Debug("Waiting")
 	err := <-s.errors
-	for _, s6 := range s.Servers6 {
-		if s6 != nil {
-			s6.Close()
-		}
-	}
-	for _, s4 := range s.Servers4 {
-		if s4 != nil {
-			s4.Close()
-		}
-	}
+	s.Close()
 	return err
 }
 
-// NewServer creates a Server instance with the provided configuration.
-func NewServer(config *config.Config) *Server {
-	return &Server{Config: config, errors: make(chan error, 1)}
+// Close closes all listening connections
+func (s *Servers) Close() {
+	for _, srv := range s.listeners {
+		if srv != nil {
+			srv.Close()
+		}
+	}
 }

@@ -7,48 +7,39 @@ package server
 import (
 	"fmt"
 	"net"
+	"sync"
 
-	"github.com/coredhcp/coredhcp/config"
-	"github.com/coredhcp/coredhcp/handler"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
+
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
-	"github.com/insomniacslk/dhcp/dhcpv6/server6"
 )
-
-// Server is a CoreDHCP server structure that holds information about
-// DHCPv6 and DHCPv4 servers, and their respective handlers.
-type Server struct {
-	Handlers6 []handler.Handler6
-	Handlers4 []handler.Handler4
-	Config    *config.Config
-	Servers6  []*server6.Server
-	Servers4  []*server4.Server
-	errors    chan error
-}
 
 // BUG(Natolumin): Servers not bound to a specific interface may send responses
 // on the wrong interface as they will use the default route.
 // See https://github.com/coredhcp/coredhcp/issues/52
 
-// MainHandler6 runs for every received DHCPv6 packet. It will run every
+// HandleMsg6 runs for every received DHCPv6 packet. It will run every
 // registered handler in sequence, and reply with the resulting response.
 // It will not reply if the resulting response is `nil`.
-func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHCPv6) {
-	var (
-		resp dhcpv6.DHCPv6
-		stop bool
-		err  error
-	)
+func (l *listener6) HandleMsg6(buf []byte, oob *ipv6.ControlMessage, peer *net.UDPAddr) {
+	d, err := dhcpv6.FromBytes(buf)
+	bufpool.Put(&buf)
+	if err != nil {
+		log.Printf("Error parsing DHCPv6 request: %v", err)
+		return
+	}
 
 	// decapsulate the relay message
-	msg, err := req.GetInnerMessage()
+	msg, err := d.GetInnerMessage()
 	if err != nil {
 		log.Warningf("DHCPv6: cannot get inner message: %v", err)
 		return
 	}
 
 	// Create a suitable basic response packet
+	var resp dhcpv6.DHCPv6
 	switch msg.Type() {
 	case dhcpv6.MessageTypeSolicit:
 		if msg.GetOneOption(dhcpv6.OptionRapidCommit) != nil {
@@ -62,13 +53,14 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 	default:
 		err = fmt.Errorf("MainHandler6: message type %d not supported", msg.Type())
 	}
-
 	if err != nil {
 		log.Printf("MainHandler6: NewReplyFromDHCPv6Message failed: %v", err)
 		return
 	}
-	for _, handler := range s.Handlers6 {
-		resp, stop = handler(req, resp)
+
+	var stop bool
+	for _, handler := range l.handlers {
+		resp, stop = handler(d, resp)
 		if stop {
 			break
 		}
@@ -79,27 +71,38 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 	}
 
 	// if the request was relayed, re-encapsulate the response
-	if req.IsRelay() {
-		tmp, err := dhcpv6.NewRelayReplFromRelayForw(req.(*dhcpv6.RelayMessage), resp.(*dhcpv6.Message))
-		if err != nil {
-			log.Warningf("DHCPv6: cannot create relay-repl from relay-forw: %v", err)
-			return
+	if d.IsRelay() {
+		if rmsg, ok := resp.(*dhcpv6.Message); !ok {
+			log.Warningf("DHCPv6: response is a relayed message, not reencapsulating")
+		} else {
+			tmp, err := dhcpv6.NewRelayReplFromRelayForw(d.(*dhcpv6.RelayMessage), rmsg)
+			if err != nil {
+				log.Warningf("DHCPv6: cannot create relay-repl from relay-forw: %v", err)
+				return
+			}
+			resp = tmp
 		}
-		resp = tmp
 	}
 
-	if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
+	if _, err := l.WriteTo(resp.ToBytes(), nil, peer); err != nil {
 		log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
 	}
 }
 
-// MainHandler4 is like MainHandler6, but for DHCPv4 packets.
-func (s *Server) MainHandler4(conn net.PacketConn, _peer net.Addr, req *dhcpv4.DHCPv4) {
+func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.Addr) {
 	var (
 		resp, tmp *dhcpv4.DHCPv4
 		err       error
 		stop      bool
 	)
+
+	req, err := dhcpv4.FromBytes(buf)
+	bufpool.Put(&buf)
+	if err != nil {
+		log.Printf("Error parsing DHCPv6 request: %v", err)
+		return
+	}
+
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		log.Printf("MainHandler4: unsupported opcode %d. Only BootRequest (%d) is supported", req.OpCode, dhcpv4.OpcodeBootRequest)
 		return
@@ -120,7 +123,7 @@ func (s *Server) MainHandler4(conn net.PacketConn, _peer net.Addr, req *dhcpv4.D
 	}
 
 	resp = tmp
-	for _, handler := range s.Handlers4 {
+	for _, handler := range l.handlers {
 		resp, stop = handler(req, resp)
 		if stop {
 			break
@@ -149,11 +152,52 @@ func (s *Server) MainHandler4(conn net.PacketConn, _peer net.Addr, req *dhcpv4.D
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		}
 
-		if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
+		if _, err := l.WriteTo(resp.ToBytes(), nil, peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 		}
 
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
+	}
+}
+
+// XXX: performance-wise, Pool may or may not be good (see https://github.com/golang/go/issues/23199)
+// Interface is good for what we want. Maybe "just" trust the GC and we'll be fine ?
+var bufpool = sync.Pool{New: func() interface{} { r := make([]byte, MaxDatagram); return &r }}
+
+// MaxDatagram is the maximum length of message that can be received.
+const MaxDatagram = 1 << 16
+
+// XXX: investigate using RecvMsgs to batch messages and reduce syscalls
+
+// Serve6 handles datagrams received on conn and passes them to the pluginchain
+func (l *listener6) Serve() error {
+	log.Printf("Listen %s", l.LocalAddr())
+	for {
+		b := *bufpool.Get().(*[]byte)
+		b = b[:MaxDatagram] //Reslice to max capacity in case the buffer in pool was resliced smaller
+
+		n, oob, peer, err := l.ReadFrom(b)
+		if err != nil {
+			log.Printf("Error reading from connection: %v", err)
+			return err
+		}
+		go l.HandleMsg6(b[:n], oob, peer.(*net.UDPAddr))
+	}
+}
+
+// Serve6 handles datagrams received on conn and passes them to the pluginchain
+func (l *listener4) Serve() error {
+	log.Printf("Listen %s", l.LocalAddr())
+	for {
+		b := *bufpool.Get().(*[]byte)
+		b = b[:MaxDatagram] //Reslice to max capacity in case the buffer in pool was resliced smaller
+
+		n, oob, peer, err := l.ReadFrom(b)
+		if err != nil {
+			log.Printf("Error reading from connection: %v", err)
+			return err
+		}
+		go l.HandleMsg4(b[:n], oob, peer.(*net.UDPAddr))
 	}
 }
