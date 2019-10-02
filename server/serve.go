@@ -126,7 +126,7 @@ func Start(config *config.Config) (*Servers, error) {
 		log.Println("Starting DHCPv6 server")
 		for _, addr := range config.Server6.Addresses {
 			var l6 *listener6
-			l6, err = listen6(addr)
+			l6, err = listen6(&addr)
 			if err != nil {
 				goto cleanup
 			}
@@ -142,7 +142,7 @@ func Start(config *config.Config) (*Servers, error) {
 		log.Println("Starting DHCPv4 server")
 		for _, addr := range config.Server4.Addresses {
 			var l4 *listener4
-			l4, err = listen4(addr)
+			l4, err = listen4(&addr)
 			if err != nil {
 				goto cleanup
 			}

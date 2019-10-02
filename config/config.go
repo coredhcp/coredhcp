@@ -41,8 +41,8 @@ func New() *Config {
 // ServerConfig holds a server configuration that is specific to either the
 // DHCPv6 server or the DHCPv4 server.
 type ServerConfig struct {
-	Addresses []*net.UDPAddr
-	Plugins   []*PluginConfig
+	Addresses []net.UDPAddr
+	Plugins   []PluginConfig
 }
 
 // PluginConfig holds the configuration of a plugin
@@ -83,8 +83,8 @@ func protoVersionCheck(v protocolVersion) error {
 	return nil
 }
 
-func parsePlugins(pluginList []interface{}) ([]*PluginConfig, error) {
-	plugins := make([]*PluginConfig, 0)
+func parsePlugins(pluginList []interface{}) ([]PluginConfig, error) {
+	plugins := make([]PluginConfig, 0, len(pluginList))
 	for idx, val := range pluginList {
 		conf := cast.ToStringMap(val)
 		if conf == nil {
@@ -105,7 +105,7 @@ func parsePlugins(pluginList []interface{}) ([]*PluginConfig, error) {
 			args = strings.Fields(cast.ToString(v))
 			break
 		}
-		plugins = append(plugins, &PluginConfig{Name: name, Args: args})
+		plugins = append(plugins, PluginConfig{Name: name, Args: args})
 	}
 	return plugins, nil
 }
@@ -188,7 +188,7 @@ func (c *Config) getListenAddress(addr string, ver protocolVersion) (*net.UDPAdd
 	return &listener, nil
 }
 
-func (c *Config) getPlugins(ver protocolVersion) ([]*PluginConfig, error) {
+func (c *Config) getPlugins(ver protocolVersion) ([]PluginConfig, error) {
 	if err := protoVersionCheck(ver); err != nil {
 		return nil, err
 	}
@@ -222,13 +222,13 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		addrs = []string{cast.ToString(listen)}
 	}
 
-	listeners := []*net.UDPAddr{}
+	listeners := []net.UDPAddr{}
 	for _, a := range addrs {
 		listenAddr, err := c.getListenAddress(a, ver)
 		if err != nil {
 			return err
 		}
-		listeners = append(listeners, listenAddr)
+		listeners = append(listeners, *listenAddr)
 	}
 
 	sc := ServerConfig{
