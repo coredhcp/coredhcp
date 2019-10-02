@@ -5,6 +5,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -216,19 +217,9 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		log.Printf("DHCPv%d: found plugin `%s` with %d args: %v", ver, p.Name, len(p.Args), p.Args)
 	}
 
-	listen := c.v.Get(fmt.Sprintf("server%d.listen", ver))
-	addrs, err := cast.ToStringSliceE(listen)
+	listeners, err := c.parseListen(ver)
 	if err != nil {
-		addrs = []string{cast.ToString(listen)}
-	}
-
-	listeners := []net.UDPAddr{}
-	for _, a := range addrs {
-		listenAddr, err := c.getListenAddress(a, ver)
-		if err != nil {
-			return err
-		}
-		listeners = append(listeners, *listenAddr)
+		return err
 	}
 
 	sc := ServerConfig{
@@ -241,4 +232,73 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 		c.Server4 = &sc
 	}
 	return nil
+}
+
+// BUG(Natolumin): When listening on link-local multicast addresses without
+// binding to a specific interface, new interfaces coming up after the server
+// starts will not be taken into account.
+
+func expandLLMulticast(addr *net.UDPAddr) ([]net.UDPAddr, error) {
+	if !addr.IP.IsLinkLocalMulticast() && !addr.IP.IsInterfaceLocalMulticast() {
+		return nil, errors.New("Address is not multicast")
+	}
+	if addr.Zone != "" {
+		return nil, errors.New("Address is already zoned")
+	}
+	var needFlags = net.FlagMulticast
+	if addr.IP.To4() != nil {
+		// We need to be able to send broadcast responses in ipv4
+		needFlags |= net.FlagBroadcast
+	}
+
+	ifs, err := net.Interfaces()
+	ret := make([]net.UDPAddr, 0, len(ifs))
+	if err != nil {
+		return nil, fmt.Errorf("Could not list network interfaces: %v", err)
+	}
+	for _, iface := range ifs {
+		if (iface.Flags & needFlags) != needFlags {
+			continue
+		}
+		caddr := *addr
+		caddr.Zone = iface.Name
+		ret = append(ret, caddr)
+	}
+	if len(ret) == 0 {
+		return nil, errors.New("No suitable interface found for multicast listener")
+	}
+	return ret, nil
+}
+
+func (c *Config) parseListen(ver protocolVersion) ([]net.UDPAddr, error) {
+	if err := protoVersionCheck(ver); err != nil {
+		return nil, err
+	}
+
+	listen := c.v.Get(fmt.Sprintf("server%d.listen", ver))
+	addrs, err := cast.ToStringSliceE(listen)
+	if err != nil {
+		addrs = []string{cast.ToString(listen)}
+	}
+
+	listeners := []net.UDPAddr{}
+	for _, a := range addrs {
+		l, err := c.getListenAddress(a, ver)
+		if err != nil {
+			return nil, err
+		}
+
+		if l.Zone == "" && (l.IP.IsLinkLocalMulticast() || l.IP.IsInterfaceLocalMulticast()) {
+			// link-local multicast specified without interface gets expanded to listen on all interfaces
+			expanded, err := expandLLMulticast(l)
+			if err != nil {
+				return nil, err
+			}
+			listeners = append(listeners, expanded...)
+			continue
+		}
+
+		listeners = append(listeners, *l)
+	}
+	return listeners, nil
 }
