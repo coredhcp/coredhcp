@@ -270,12 +270,34 @@ func expandLLMulticast(addr *net.UDPAddr) ([]net.UDPAddr, error) {
 	return ret, nil
 }
 
+func defaultListen(ver protocolVersion) ([]net.UDPAddr, error) {
+	switch ver {
+	case protocolV4:
+		return []net.UDPAddr{{Port: dhcpv4.ServerPort}}, nil
+	case protocolV6:
+		l, err := expandLLMulticast(&net.UDPAddr{IP: dhcpv6.AllDHCPRelayAgentsAndServers, Port: dhcpv6.DefaultServerPort})
+		if err != nil {
+			return nil, err
+		}
+		l = append(l,
+			net.UDPAddr{IP: dhcpv6.AllDHCPServers, Port: dhcpv6.DefaultServerPort},
+			// XXX: Do we want to listen on [::] as default ?
+		)
+		return l, nil
+	}
+	return nil, errors.New("defaultListen: Incorrect protocol version")
+}
+
 func (c *Config) parseListen(ver protocolVersion) ([]net.UDPAddr, error) {
 	if err := protoVersionCheck(ver); err != nil {
 		return nil, err
 	}
 
 	listen := c.v.Get(fmt.Sprintf("server%d.listen", ver))
+	if listen == nil {
+		return defaultListen(ver)
+	}
+
 	addrs, err := cast.ToStringSliceE(listen)
 	if err != nil {
 		addrs = []string{cast.ToString(listen)}
