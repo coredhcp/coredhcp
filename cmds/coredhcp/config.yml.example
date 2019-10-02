@@ -1,14 +1,16 @@
 server6:
-    interface: "eth0"
-    #listen: 'your-unicast-address:547'
+    # Optionally add a listen statement as follows
+    # listen:
+        # - "[ff02::1:2]" # Listens on a link-local multicast address on all interfaces
+        # - "[fe80::1%eth0]:547" # Listens on a specific interface
+        # - "[::]" # Listens on the wildcard address. *No multicast group will be joined*
+    # Otherwise the default is ff02::1:2 on all interfaces and ff05::1:3 on the default multicast interface
     plugins:
         - server_id: LL 00:de:ad:be:ef:00
         - file: "leases.txt"
         # - dns: 2001:4860:4860::8888 2001:4860:4860::8844
 
 server4:
-    listen: '0.0.0.0:67'
-    interface: "eth0"
     plugins:
         # - lease_time: 60s
         # - server_id: 10.10.10.1
