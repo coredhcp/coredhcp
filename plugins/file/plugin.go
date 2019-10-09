@@ -160,7 +160,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 				// FIXME this field should come from the configuration, not
 				// being hardcoded
 				resp.AddOption(
-					&dhcpv6.OptBootFileURL{BootFileURL: []byte("http://[2001:db8::0:1]/nbp")},
+					dhcpv6.OptBootFileURL("http://[2001:db8::0:1]/nbp"),
 				)
 			}
 		}
