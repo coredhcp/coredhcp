@@ -14,9 +14,9 @@ import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
+	"github.com/gomodule/redigo/redis"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
-	"github.com/gomodule/redigo/redis"
 )
 
 // various global variables
@@ -42,7 +42,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	defer conn.Close()
 
 	// Get all options for a MAC
-	options, err := redis.StringMap(conn.Do("HGETALL", "mac:" + req.ClientHWAddr.String()))
+	options, err := redis.StringMap(conn.Do("HGETALL", "mac:"+req.ClientHWAddr.String()))
 	if err == redis.ErrNil || options["ipv4"] == "" {
 		log.Printf("MAC address %s is not allowed", req.ClientHWAddr.String())
 		return nil, true
@@ -55,7 +55,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	for option, value := range options {
 		switch option {
 		case "ipv4":
-			ipaddr, ipnet, err:= net.ParseCIDR(value)
+			ipaddr, ipnet, err := net.ParseCIDR(value)
 			if err != nil {
 				log.Printf("malformed IP %s error: %s", value, err)
 				return nil, true
@@ -95,11 +95,11 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
 
 	// If request has Relay Agent Info copy it to the reply
-        if req.Options.Has(dhcpv4.OptionRelayAgentInformation) {
-	   relayopt := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
-           opt := dhcpv4.OptGeneric(dhcpv4.OptionRelayAgentInformation, relayopt)
-           resp.Options.Update(opt)
-        }
+	if req.Options.Has(dhcpv4.OptionRelayAgentInformation) {
+		relayopt := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
+		opt := dhcpv4.OptGeneric(dhcpv4.OptionRelayAgentInformation, relayopt)
+		resp.Options.Update(opt)
+	}
 
 	return resp, false
 }
@@ -129,10 +129,10 @@ func setupRedis(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	}
 
 	if v6 {
-	 	log.Printf("Using redis server %s for DHCPv6 static leases", args[0])
-	 } else {
-	 	log.Printf("Using redis server %s for DHCPv4 static leases", args[0])
-	 }
+		log.Printf("Using redis server %s for DHCPv6 static leases", args[0])
+	} else {
+		log.Printf("Using redis server %s for DHCPv4 static leases", args[0])
+	}
 
 	// Initialize Redis Pool
 	pool = &redis.Pool{
