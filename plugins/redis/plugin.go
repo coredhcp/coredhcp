@@ -22,7 +22,7 @@ import (
 // various global variables
 var log = logger.GetLogger("plugins/redis")
 var pool *redis.Pool
-var LeaseTime time.Duration
+var leaseTime time.Duration
 
 func init() {
 	plugins.RegisterPlugin("redis", setupRedis6, setupRedis4)
@@ -62,7 +62,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 			}
 			resp.YourIPAddr = ipaddr
 			resp.Options.Update(dhcpv4.OptSubnetMask(ipnet.Mask))
-			//log.Printf("found IP address %s for MAC %s", value, req.ClientHWAddr.String())
+			log.Printf("found IP address %s for MAC %s", value, req.ClientHWAddr.String())
 
 		case "router":
 			router := net.ParseIP(value)
@@ -92,7 +92,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	}
 
 	// Set lease time
-	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
+	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(leaseTime))
 
 	// If request has Relay Agent Info copy it to the reply
 	if req.Options.Has(dhcpv4.OptionRelayAgentInformation) {
@@ -123,7 +123,7 @@ func setupRedis(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	if args[0] == "" {
 		return nil, nil, errors.New("Redis server can't be empty")
 	}
-	LeaseTime, err = time.ParseDuration(args[1])
+	leaseTime, err = time.ParseDuration(args[1])
 	if err != nil {
 		return Handler6, Handler4, fmt.Errorf("invalid duration: %v", args[1])
 	}
