@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"time"
 
 	"github.com/coredhcp/coredhcp"
@@ -18,18 +19,32 @@ import (
 	_ "github.com/coredhcp/coredhcp/plugins/server_id"
 )
 
+var (
+	flagLogFile     = flag.String("logfile", "", "Name of the log file to append to. Default: stdout/stderr only")
+	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
+)
+
 func main() {
-	logger := logger.GetLogger("main")
+	flag.Parse()
+	log := logger.GetLogger("main")
+	if *flagLogFile != "" {
+		log.Infof("Logging to file %s", *flagLogFile)
+		logger.WithFile(log, *flagLogFile)
+	}
+	if *flagLogNoStdout {
+		log.Infof("Disabling logging to stdout/stderr")
+		logger.WithNoStdOutErr(log)
+	}
 	config, err := config.Load()
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 	server := coredhcp.NewServer(config)
 	if err := server.Start(); err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 	if err := server.Wait(); err != nil {
-		logger.Print(err)
+		log.Error(err)
 	}
 	time.Sleep(time.Second)
 }

@@ -5,9 +5,11 @@
 package logger
 
 import (
+	"io/ioutil"
 	"sync"
 
 	log_prefixed "github.com/chappjc/logrus-prefix"
+	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,4 +33,14 @@ func GetLogger(prefix string) *logrus.Entry {
 		globalLogger = logger
 	}
 	return globalLogger.WithField("prefix", prefix)
+}
+
+// WithFile logs to the specified file in addition to the existing output.
+func WithFile(log *logrus.Entry, logfile string) {
+	log.Logger.AddHook(lfshook.NewHook(logfile, &logrus.TextFormatter{}))
+}
+
+// WithNoStdOutErr disables logging to stdout/stderr.
+func WithNoStdOutErr(log *logrus.Entry) {
+	log.Logger.SetOutput(ioutil.Discard)
 }
