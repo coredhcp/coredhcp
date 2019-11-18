@@ -20,9 +20,11 @@ import (
 )
 
 // various global variables
-var log = logger.GetLogger("plugins/redis")
-var pool *redis.Pool
-var leaseTime time.Duration
+var (
+	log = logger.GetLogger("plugins/redis")
+	pool *redis.Pool
+	leaseTime time.Duration
+)
 
 func init() {
 	plugins.RegisterPlugin("redis", setupRedis6, setupRedis4)
@@ -39,17 +41,32 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	// Get redis connection from pool
 	conn := pool.Get()
 
+	// defer redis connection close so we don't leak connections
 	defer conn.Close()
 
 	// Get all options for a MAC
 	options, err := redis.StringMap(conn.Do("HGETALL", "mac:"+req.ClientHWAddr.String()))
-	if err == redis.ErrNil || options["ipv4"] == "" {
-		log.Printf("MAC address %s is not allowed", req.ClientHWAddr.String())
-		return nil, true
-	} else if err != nil {
-		log.Printf("Redis error: %s", err)
+
+	// Handle redis error
+	if err != nil {
+				log.Printf("Redis error: %s...dropping request", err)
+			return nil, true
+		}
+	
+	// Handle no hash found
+	if len(options) == 0  {
+		log.Printf("MAC %s not found...dropping request", req.ClientHWAddr.String())
 		return nil, true
 	}
+
+	// Handle no ipv4 field
+	if options["ipv4"] == "" {
+		log.Printf("MAC %s has no ipv4 field...dropping request", req.ClientHWAddr.String())
+		return nil, true
+	}
+
+	// Set default lease time - may be overriden by hash field option
+	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(leaseTime))
 
 	// Loop through options returned and assign as needed
 	for option, value := range options {
@@ -57,17 +74,18 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		case "ipv4":
 			ipaddr, ipnet, err := net.ParseCIDR(value)
 			if err != nil {
-				log.Printf("malformed IP %s error: %s", value, err)
+				log.Printf("MAC %s malformed IP %s error: %s", req.ClientHWAddr.String(), value, err)
 				return nil, true
 			}
 			resp.YourIPAddr = ipaddr
 			resp.Options.Update(dhcpv4.OptSubnetMask(ipnet.Mask))
-			log.Printf("found IP address %s for MAC %s", value, req.ClientHWAddr.String())
+			log.Printf("MAC %s assigned IPv4 address %s", req.ClientHWAddr.String(), value)
 
 		case "router":
 			router := net.ParseIP(value)
 			if router.To4() == nil {
-				log.Printf("Invalid router option: %s for MAC %s", value, req.ClientHWAddr)
+				log.Printf("MAC %s Invalid router option: %s...option skipped", req.ClientHWAddr.String(), value)
+				break
 			}
 			resp.Options.Update(dhcpv4.OptRouter(router))
 
@@ -77,7 +95,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 			for _, server := range servers {
 				DNSServer := net.ParseIP(server)
 				if DNSServer.To4() == nil {
-					log.Printf("Invalid dns server: %s for MAC %s", server, req.ClientHWAddr)
+					log.Printf("MAC %s Invalid dns server: %s...request dropped", req.ClientHWAddr.String(), server)
 					return nil, true
 				}
 				dnsServers4 = append(dnsServers4, DNSServer)
@@ -86,19 +104,18 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 				resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
 			}
 
+		case "leaseTime":
+			lt, err := time.ParseDuration(value)
+			if err != nil {
+				log.Printf("MAC %s invalid lease time %s...option skipped", req.ClientHWAddr.String(), value)
+				break
+			}
+			// Set lease time
+			resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(lt))
+
 		default:
-			log.Printf("found unhandled option %s for MAC %s", option, req.ClientHWAddr.String())
+			log.Printf("MAC %s found un-handled option %s...option skipped", req.ClientHWAddr.String(), option)
 		}
-	}
-
-	// Set lease time
-	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(leaseTime))
-
-	// If request has Relay Agent Info copy it to the reply
-	if req.Options.Has(dhcpv4.OptionRelayAgentInformation) {
-		relayopt := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
-		opt := dhcpv4.OptGeneric(dhcpv4.OptionRelayAgentInformation, relayopt)
-		resp.Options.Update(opt)
 	}
 
 	return resp, false
