@@ -74,7 +74,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		case "ipv4":
 			ipaddr, ipnet, err := net.ParseCIDR(value)
 			if err != nil {
-				log.Printf("MAC %s malformed IP %s error: %s", req.ClientHWAddr.String(), value, err)
+				log.Printf("MAC %s malformed IP %s error: %s...dropping request", req.ClientHWAddr.String(), value, err)
 				return nil, true
 			}
 			resp.YourIPAddr = ipaddr
@@ -95,7 +95,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 			for _, server := range servers {
 				DNSServer := net.ParseIP(server)
 				if DNSServer.To4() == nil {
-					log.Printf("MAC %s Invalid dns server: %s...request dropped", req.ClientHWAddr.String(), server)
+					log.Printf("MAC %s Invalid dns server: %s...dropping request", req.ClientHWAddr.String(), server)
 					return nil, true
 				}
 				dnsServers4 = append(dnsServers4, DNSServer)
