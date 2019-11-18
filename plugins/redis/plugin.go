@@ -21,8 +21,8 @@ import (
 
 // various global variables
 var (
-	log = logger.GetLogger("plugins/redis")
-	pool *redis.Pool
+	log       = logger.GetLogger("plugins/redis")
+	pool      *redis.Pool
 	leaseTime time.Duration
 )
 
@@ -49,12 +49,12 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 
 	// Handle redis error
 	if err != nil {
-				log.Printf("Redis error: %s...dropping request", err)
-			return nil, true
-		}
-	
+		log.Printf("Redis error: %s...dropping request", err)
+		return nil, true
+	}
+
 	// Handle no hash found
-	if len(options) == 0  {
+	if len(options) == 0 {
 		log.Printf("MAC %s not found...dropping request", req.ClientHWAddr.String())
 		return nil, true
 	}
