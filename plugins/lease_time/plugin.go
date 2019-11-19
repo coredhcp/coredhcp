@@ -23,8 +23,8 @@ func init() {
 }
 
 var (
-	v6LeaseTime time.Duration 
-	v4LeaseTime time.Duration 
+	v6LeaseTime time.Duration
+	v4LeaseTime time.Duration
 )
 
 // Handler6 handles DHCPv6 packets for the lease_time plugin.
