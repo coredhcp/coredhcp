@@ -21,7 +21,7 @@ func init() {
 var (
 	log         = logger.GetLogger("plugins/lease_time")
 	v4LeaseTime time.Duration
-	overwrite bool
+	overwrite   bool
 )
 
 // Handler4 handles DHCPv4 packets for the lease_time plugin.
