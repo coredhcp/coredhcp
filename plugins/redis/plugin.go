@@ -23,7 +23,6 @@ import (
 var (
 	log       = logger.GetLogger("plugins/redis")
 	pool      *redis.Pool
-	leaseTime time.Duration
 )
 
 func init() {
@@ -64,9 +63,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		log.Printf("MAC %s has no ipv4 field...dropping request", req.ClientHWAddr.String())
 		return nil, true
 	}
-
-	// Set default lease time - may be overriden by hash field option
-	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(leaseTime))
 
 	// Loop through options returned and assign as needed
 	for option, value := range options {
@@ -133,16 +129,11 @@ func setupRedis4(args ...string) (handler.Handler4, error) {
 }
 
 func setupRedis(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
-	var err error
-	if len(args) < 2 {
-		return nil, nil, fmt.Errorf("invalid number of arguments, want: 2 (redis server:port, lease time), got: %d", len(args))
+	if len(args) < 1 {
+		return nil, nil, fmt.Errorf("invalid number of arguments, want: 1 (redis server:port), got: %d", len(args))
 	}
 	if args[0] == "" {
 		return nil, nil, errors.New("Redis server can't be empty")
-	}
-	leaseTime, err = time.ParseDuration(args[1])
-	if err != nil {
-		return Handler6, Handler4, fmt.Errorf("invalid duration: %v", args[1])
 	}
 
 	if v6 {
