@@ -20,7 +20,7 @@ func init() {
 }
 
 var (
-	log = logger.GetLogger("plugins/lease_time")
+	log         = logger.GetLogger("plugins/lease_time")
 	v4LeaseTime time.Duration
 )
 
