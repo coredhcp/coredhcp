@@ -14,6 +14,7 @@ import (
 	_ "github.com/coredhcp/coredhcp/plugins/dns"
 	_ "github.com/coredhcp/coredhcp/plugins/file"
 	_ "github.com/coredhcp/coredhcp/plugins/netmask"
+	_ "github.com/coredhcp/coredhcp/plugins/lease_time"
 	_ "github.com/coredhcp/coredhcp/plugins/range"
 	_ "github.com/coredhcp/coredhcp/plugins/redis"
 	_ "github.com/coredhcp/coredhcp/plugins/router"
