@@ -21,8 +21,8 @@ import (
 
 // various global variables
 var (
-	log       = logger.GetLogger("plugins/redis")
-	pool      *redis.Pool
+	log  = logger.GetLogger("plugins/redis")
+	pool *redis.Pool
 )
 
 func init() {
