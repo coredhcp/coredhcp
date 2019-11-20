@@ -10,6 +10,7 @@ server4:
     listen: '0.0.0.0:67'
     interface: "eth0"
     plugins:
+        # - lease_time: 60s
         # - server_id: 10.10.10.1
         # - dns: 8.8.8.8 8.8.4.4
         # - router: 10.10.10.1
