@@ -160,7 +160,14 @@ func (s *Server) MainHandler6(conn net.PacketConn, peer net.Addr, req dhcpv6.DHC
 		resp = tmp
 	}
 
-	if _, err := conn.WriteTo(resp.ToBytes(), peer); err != nil {
+	var newPeer = peer
+	if req.IsRelay() {
+		newPeer = &net.UDPAddr{
+			IP:   peer.(*net.UDPAddr).IP,
+			Port: dhcpv6.DefaultServerPort,
+		}
+	}
+	if _, err := conn.WriteTo(resp.ToBytes(), newPeer); err != nil {
 		log.Printf("MainHandler6: conn.Write to %v failed: %v", peer, err)
 	}
 }
