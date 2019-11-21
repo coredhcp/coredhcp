@@ -26,7 +26,6 @@ var (
 // Handler4 handles DHCPv4 packets for the lease_time plugin.
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
-		log.Warningf("not a BootRequest, ignoring")
 		return resp, false
 	}
 	// Set lease time unless it has already been set
@@ -39,13 +38,13 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 func setupLeaseTime4(args ...string) (handler.Handler4, error) {
 	log.Print("loading `lease_time` plugin for DHCPv4")
 	if len(args) < 1 {
-		log.Warning("No default lease time provided")
+		log.Error("No default lease time provided")
 		return nil, errors.New("lease_time failed to initialize")
 	}
 
 	leaseTime, err := time.ParseDuration(args[0])
 	if err != nil {
-		log.Warningf("invalid duration: %v", args[0])
+		log.Errorf("invalid duration: %v", args[0])
 		return nil, errors.New("lease_time failed to initialize")
 	}
 	v4LeaseTime = leaseTime
