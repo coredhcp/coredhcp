@@ -36,8 +36,9 @@ See also [config.yml.example](cmds/coredhcp/config.yml.example).
 
 ## Build and run
 
-The server is located under [cmds/coredhcp/](cmds/coredhcp/), so enter that
-directory first.
+An example server is located under [cmds/coredhcp/](cmds/coredhcp/), so enter that
+directory first. To build a server with a custom set of plugins, see the "Server
+with custom plugins" section below.
 
 Once you have a working configuration in `config.yml` (see [config.yml.example](cmds/coredhcp/config.yml.example)), you can build and run the server:
 ```
@@ -82,11 +83,23 @@ INFO[2019-01-05T22:29:21Z] DHCPv6Message
 ...
 ```
 
-# How to write a plugin
+# Plugins
 
 CoreDHCP is heavily based on plugins: even the core functionalities are
 implemented as plugins. Therefore, knowing how to write one is the key to add
 new features to CoreDHCP.
+
+Core plugins can be found under the [plugins](/plugins/) directory. Additional
+plugins can also be found in the
+[coredhcp/plugins](https://github.com/coredhcp/plugins) repository.
+
+## Server with custom plugins
+
+To build a server with a custom set of plugins you can use the
+[coredhcp-generator](/cmds/coredhcp-generator/) tool. Head there for
+documentation on how to use it.
+
+# How to write a plugin
 
 The best way to learn is to read the comments and source code of the
 [example plugin](plugins/example/), which guides you through the implementation
