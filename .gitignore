@@ -4,4 +4,5 @@ cmds/coredhcp/leases4.txt
 cmds/coredhcp/config.yml
 cmds/coredhcp/coredhcp
 cmds/client/client
+cmds/coredhcp-generator/coredhcp-generator
 .vscode
