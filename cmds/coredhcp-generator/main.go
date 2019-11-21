@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"html/template"
 	"io/ioutil"
@@ -21,6 +22,7 @@ const (
 var (
 	flagTemplate = flag.String("template", defaultTemplateFile, "Template file name")
 	flagOutfile  = flag.String("outfile", "", "Output file path")
+	flagFromFile = flag.String("from", "", "Optional file name to get the plugin list from, one import path per line")
 )
 
 func main() {
@@ -33,13 +35,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Template parsing failed: %v", err)
 	}
-	var plugins []string
+	plugins := make(map[string]bool)
 	for _, pl := range flag.Args() {
 		pl := strings.TrimSpace(pl)
 		if pl == "" {
 			continue
 		}
-		plugins = append(plugins, pl)
+		plugins[pl] = true
+	}
+	if *flagFromFile != "" {
+		// additional plugin names from a text file, one line per plugin import
+		// path
+		fd, err := os.Open(*flagFromFile)
+		if err != nil {
+			log.Fatalf("Failed to read file '%s': %v", *flagFromFile, err)
+		}
+		defer func() {
+			if err := fd.Close(); err != nil {
+				log.Printf("Error closing file '%s': %v", *flagFromFile, err)
+			}
+		}()
+		sc := bufio.NewScanner(fd)
+		for sc.Scan() {
+			pl := strings.TrimSpace(sc.Text())
+			if pl == "" {
+				continue
+			}
+			plugins[pl] = true
+		}
+		if err := sc.Err(); err != nil {
+			log.Fatalf("Error reading file '%s': %v", *flagFromFile, err)
+		}
 	}
 	if len(plugins) == 0 {
 		log.Fatalf("No plugin specified!")
@@ -52,7 +78,12 @@ func main() {
 		}
 		outfile = path.Join(tmpdir, "coredhcp.go")
 	}
-	log.Printf("Generating output file '%s' with %d plugins", outfile, len(plugins))
+	log.Printf("Generating output file '%s' with %d plugin(s):", outfile, len(plugins))
+	idx := 1
+	for pl := range plugins {
+		log.Printf("% 3d) %s", idx, pl)
+		idx++
+	}
 	outFD, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("Failed to create output file '%s': %v", outfile, err)
@@ -62,7 +93,12 @@ func main() {
 			log.Printf("Error while closing file descriptor for '%s': %v", outfile, err)
 		}
 	}()
-	if err := t.Execute(outFD, plugins); err != nil {
+	// WARNING: no escaping of the provided strings is done
+	pluginList := make([]string, 0, len(plugins))
+	for pl := range plugins {
+		pluginList = append(pluginList, pl)
+	}
+	if err := t.Execute(outFD, pluginList); err != nil {
 		log.Fatalf("Template execution failed: %v", err)
 	}
 	log.Printf("Generated file '%s'. You can build it by running 'go build' in the output directory.", outfile)

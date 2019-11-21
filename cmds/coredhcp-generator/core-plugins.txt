@@ -1,0 +1,7 @@
+github.com/coredhcp/coredhcp/plugins/dns
+github.com/coredhcp/coredhcp/plugins/file
+github.com/coredhcp/coredhcp/plugins/lease_time
+github.com/coredhcp/coredhcp/plugins/netmask
+github.com/coredhcp/coredhcp/plugins/range
+github.com/coredhcp/coredhcp/plugins/router
+github.com/coredhcp/coredhcp/plugins/server_id
