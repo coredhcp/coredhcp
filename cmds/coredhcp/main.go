@@ -17,16 +17,22 @@ import (
 	_ "github.com/coredhcp/coredhcp/plugins/range"
 	_ "github.com/coredhcp/coredhcp/plugins/router"
 	_ "github.com/coredhcp/coredhcp/plugins/server_id"
+	"github.com/sirupsen/logrus"
 )
 
 var (
 	flagLogFile     = flag.String("logfile", "", "Name of the log file to append to. Default: stdout/stderr only")
 	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
+	flagDebug       = flag.Bool("debug", false, "Enable debug output")
 )
 
 func main() {
 	flag.Parse()
 	log := logger.GetLogger("main")
+	if *flagDebug {
+		log.Logger.SetLevel(logrus.DebugLevel)
+		log.Infof("Enabled debug logging")
+	}
 	if *flagLogFile != "" {
 		log.Infof("Logging to file %s", *flagLogFile)
 		logger.WithFile(log, *flagLogFile)
