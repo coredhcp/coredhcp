@@ -18,7 +18,6 @@ import (
 	_ "github.com/coredhcp/coredhcp/plugins/range"
 	_ "github.com/coredhcp/coredhcp/plugins/router"
 	_ "github.com/coredhcp/coredhcp/plugins/server_id"
-	_ "github.com/coredhcp/plugins/redis"
 	"github.com/sirupsen/logrus"
 )
 
