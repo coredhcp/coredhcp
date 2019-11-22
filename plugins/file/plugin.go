@@ -59,7 +59,7 @@ var (
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
-	log.Printf("reading leases from %s", filename)
+	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
 func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
-	log.Printf("reading leases from %s", filename)
+	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -128,14 +128,14 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		log.Warningf("Could not find client MAC, passing")
 		return resp, false
 	}
-	log.Printf("looking up an IP address for MAC %s", mac.String())
+	log.Debugf("looking up an IP address for MAC %s", mac.String())
 
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
 	}
-	log.Printf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
 	resp.AddOption(&dhcpv6.OptIANA{
 		// FIXME copy this field from the client, reject/drop if missing
 		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
@@ -176,7 +176,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		return resp, false
 	}
 	resp.YourIPAddr = ipaddr
-	log.Printf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
+	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	return resp, true
 }
 
@@ -209,6 +209,6 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
 	}
 	StaticRecords = records
-	log.Printf("loaded %d leases from %s", len(records), filename)
+	log.Infof("loaded %d leases from %s", len(records), filename)
 	return Handler6, Handler4, nil
 }
