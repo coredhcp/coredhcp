@@ -27,6 +27,7 @@ script: |
   set -x
   case $TEST_SUITE in
   unit)
+      ./.travis/setup-integ.sh
       ./.travis/tests.sh
       ;;
   linters)
