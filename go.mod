@@ -4,9 +4,7 @@ go 1.12
 
 require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
-	github.com/coredhcp/plugins v0.0.0-20191121175107-a201c0b24a48
 	github.com/golangci/golangci-lint v1.21.0 // indirect
-	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/hugelgupf/socketpair v0.0.0-20190730060125-05d35a94e714 // indirect
 	github.com/insomniacslk/dhcp v0.0.0-20191112140002-c05874014012
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
