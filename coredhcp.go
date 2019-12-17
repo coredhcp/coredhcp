@@ -11,6 +11,7 @@ import (
 
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/handler"
+	"github.com/coredhcp/coredhcp/internal/dynplugins"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -54,53 +55,65 @@ func (s *Server) LoadPlugins(conf *config.Config) ([]*plugins.Plugin, []*plugins
 	// Load DHCPv6 plugins.
 	if conf.Server6 != nil {
 		for _, pluginConf := range conf.Server6.Plugins {
-			if plugin, ok := plugins.RegisteredPlugins[pluginConf.Name]; ok {
-				log.Printf("DHCPv6: loading plugin `%s`", pluginConf.Name)
-				if plugin.Setup6 == nil {
-					log.Warningf("DHCPv6: plugin `%s` has no setup function for DHCPv6", pluginConf.Name)
-					continue
-				}
-				h6, err := plugin.Setup6(pluginConf.Args...)
-				if err != nil {
-					return nil, nil, err
-				}
-				loadedPlugins6 = append(loadedPlugins6, plugin)
-				if h6 == nil {
-					return nil, nil, config.ConfigErrorFromString("no DHCPv6 handler for plugin %s", pluginConf.Name)
-				}
-				s.Handlers6 = append(s.Handlers6, h6)
-			} else {
+			plugin := loadPlugin(conf.PluginDir, pluginConf.Name)
+			if plugin == nil {
 				return nil, nil, config.ConfigErrorFromString("DHCPv6: unknown plugin `%s`", pluginConf.Name)
 			}
+			log.Printf("DHCPv6: loading plugin `%s`", pluginConf.Name)
+			if plugin.Setup6 == nil {
+				log.Warningf("DHCPv6: plugin `%s` has no setup function for DHCPv6", pluginConf.Name)
+				continue
+			}
+			h6, err := plugin.Setup6(pluginConf.Args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			loadedPlugins6 = append(loadedPlugins6, plugin)
+			if h6 == nil {
+				return nil, nil, config.ConfigErrorFromString("no DHCPv6 handler for plugin %s", pluginConf.Name)
+			}
+			s.Handlers6 = append(s.Handlers6, h6)
 		}
 	}
 	// Load DHCPv4 plugins. Yes, duplicated code, there's not really much that
 	// can be deduplicated here.
 	if conf.Server4 != nil {
 		for _, pluginConf := range conf.Server4.Plugins {
-			if plugin, ok := plugins.RegisteredPlugins[pluginConf.Name]; ok {
-				log.Printf("DHCPv4: loading plugin `%s`", pluginConf.Name)
-				if plugin.Setup4 == nil {
-					log.Warningf("DHCPv4: plugin `%s` has no setup function for DHCPv4", pluginConf.Name)
-					continue
-				}
-				h4, err := plugin.Setup4(pluginConf.Args...)
-				if err != nil {
-					return nil, nil, err
-				}
-				loadedPlugins4 = append(loadedPlugins4, plugin)
-				if h4 == nil {
-					return nil, nil, config.ConfigErrorFromString("no DHCPv4 handler for plugin %s", pluginConf.Name)
-				}
-				s.Handlers4 = append(s.Handlers4, h4)
-				//s.Handlers4 = append(s.Handlers4, h4)
-			} else {
+			plugin := loadPlugin(conf.PluginDir, pluginConf.Name)
+			if plugin == nil {
 				return nil, nil, config.ConfigErrorFromString("DHCPv4: unknown plugin `%s`", pluginConf.Name)
 			}
+			log.Printf("DHCPv4: loading plugin `%s`", pluginConf.Name)
+			if plugin.Setup4 == nil {
+				log.Warningf("DHCPv4: plugin `%s` has no setup function for DHCPv4", pluginConf.Name)
+				continue
+			}
+			h4, err := plugin.Setup4(pluginConf.Args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			loadedPlugins4 = append(loadedPlugins4, plugin)
+			if h4 == nil {
+				return nil, nil, config.ConfigErrorFromString("no DHCPv4 handler for plugin %s", pluginConf.Name)
+			}
+			s.Handlers4 = append(s.Handlers4, h4)
 		}
 	}
 
 	return loadedPlugins6, loadedPlugins4, nil
+}
+
+// Helper function that attempts to get a plugin, either statically or dynamically
+func loadPlugin(pluginDir, pluginName string) *plugins.Plugin {
+	plugin, ok := plugins.RegisteredPlugins[pluginName]
+	if !ok {
+		if err := dynplugins.LoadDynamic(pluginDir, pluginName); err != nil {
+			log.Debugf("Attempted to load plugin %s dynamically: %v", pluginName, err)
+			return nil
+		}
+		plugin = plugins.RegisteredPlugins[pluginName]
+	}
+	return plugin
 }
 
 // MainHandler6 runs for every received DHCPv6 packet. It will run every

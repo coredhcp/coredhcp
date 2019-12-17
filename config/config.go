@@ -5,8 +5,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -28,9 +31,10 @@ const (
 
 // Config holds the DHCPv6/v4 server configuration
 type Config struct {
-	v       *viper.Viper
-	Server6 *ServerConfig
-	Server4 *ServerConfig
+	v         *viper.Viper
+	Server6   *ServerConfig
+	Server4   *ServerConfig
+	PluginDir string
 }
 
 // New returns a new initialized instance of a Config object
@@ -63,6 +67,9 @@ func Load() (*Config, error) {
 	c.v.AddConfigPath("$HOME/.coredhcp/")
 	c.v.AddConfigPath("/etc/coredhcp/")
 	if err := c.v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	if err := c.parsePluginDir(); err != nil {
 		return nil, err
 	}
 	if err := c.parseConfig(protocolV6); err != nil {
@@ -218,5 +225,26 @@ func (c *Config) parseConfig(ver protocolVersion) error {
 	} else if ver == protocolV4 {
 		c.Server4 = &sc
 	}
+	return nil
+}
+
+func (c *Config) parsePluginDir() error {
+	if exists := c.v.Get("dynamic_plugins"); exists == nil {
+		return nil
+	}
+
+	pluginPath, err := filepath.Abs(c.v.GetString("dynamic_plugins"))
+	if err != nil {
+		return fmt.Errorf("Incorrect dynamic plugin path %q: %v", c.v.GetString("dynamic_plugins"), err)
+	}
+
+	pluginDir, err := os.Stat(pluginPath)
+	if err != nil {
+		return fmt.Errorf("Could not access plugin directory: %v", err)
+	} else if !pluginDir.IsDir() {
+		return errors.New("dynamic_plugins is not a directory")
+	}
+
+	c.PluginDir = pluginPath
 	return nil
 }

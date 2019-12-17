@@ -16,3 +16,5 @@ server4:
         # - router: 10.10.10.1
         # - netmask: 255.255.255.0
         # - range: leases.txt 10.10.10.100 10.10.10.200 60s
+
+dynamic_plugins: /usr/lib64/coredhcp/plugins
