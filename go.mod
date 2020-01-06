@@ -8,7 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.21.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/hugelgupf/socketpair v0.0.0-20190730060125-05d35a94e714 // indirect
-	github.com/insomniacslk/dhcp v0.0.0-20191112140002-c05874014012
+	github.com/insomniacslk/dhcp v0.0.0-20200102182701-53297fb6d37d
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
 	github.com/mdlayher/raw v0.0.0-20190606144222-a54781e5f38f // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect

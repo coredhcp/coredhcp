@@ -31,6 +31,7 @@ import (
 	"io/ioutil"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
@@ -142,8 +143,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
 				IPv6Addr:          ipaddr,
-				PreferredLifetime: 3600,
-				ValidLifetime:     3600,
+				PreferredLifetime: 3600 * time.Second,
+				ValidLifetime:     3600 * time.Second,
 			},
 		},
 	})
