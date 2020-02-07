@@ -25,8 +25,11 @@ import (
 
 var log = logger.GetLogger("plugins/range")
 
-func init() {
-	plugins.RegisterPlugin("range", setupRange6, setupRange4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "range",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 //Record holds an IP lease record
@@ -113,13 +116,13 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, false
 }
 
-func setupRange6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
 	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
-func setupRange4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	_, h4, err := setupRange(false, args...)
 	return h4, err
 }

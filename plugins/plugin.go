@@ -5,6 +5,8 @@
 package plugins
 
 import (
+	"errors"
+
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 )
@@ -29,18 +31,17 @@ type SetupFunc6 func(args ...string) (handler.Handler6, error)
 // SetupFunc4 defines a plugin setup function for DHCPv6
 type SetupFunc4 func(args ...string) (handler.Handler4, error)
 
-// RegisterPlugin registers a plugin by its name and setup functions.
-func RegisterPlugin(name string, setup6 SetupFunc6, setup4 SetupFunc4) {
-	log.Printf("Registering plugin \"%s\"", name)
-	if _, ok := RegisteredPlugins[name]; ok {
+// RegisterPlugin registers a plugin.
+func RegisterPlugin(plugin *Plugin) error {
+	if plugin == nil {
+		return errors.New("cannot register nil plugin")
+	}
+	log.Printf("Registering plugin '%s'", plugin.Name)
+	if _, ok := RegisteredPlugins[plugin.Name]; ok {
 		// TODO this highlights that asking the plugins to register themselves
 		// is not the right approach. Need to register them in the main program.
-		log.Panicf("Plugin '%s' is already registered", name)
+		log.Panicf("Plugin '%s' is already registered", plugin.Name)
 	}
-	plugin := Plugin{
-		Name:   name,
-		Setup6: setup6,
-		Setup4: setup4,
-	}
-	RegisteredPlugins[name] = &plugin
+	RegisteredPlugins[plugin.Name] = plugin
+	return nil
 }

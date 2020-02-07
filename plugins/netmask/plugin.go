@@ -18,21 +18,24 @@ import (
 
 var log = logger.GetLogger("plugins/netmask")
 
-func init() {
-	plugins.RegisterPlugin("netmask", setupNetmask6, setupNetmask4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "netmask",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 var (
 	netmask net.IPMask
 )
 
-func setupNetmask6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
 	log.Warning("not implemented for IPv6")
 	return Handler6, nil
 }
 
-func setupNetmask4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) != 1 {
 		return nil, errors.New("need at least one netmask IP address")

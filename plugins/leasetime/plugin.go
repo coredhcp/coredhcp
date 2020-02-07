@@ -14,8 +14,12 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-func init() {
-	plugins.RegisterPlugin("lease_time", nil, setupLeaseTime4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name: "lease_time",
+	// currently not supported for DHCPv6
+	Setup6: nil,
+	Setup4: setup4,
 }
 
 var (
@@ -35,7 +39,7 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, false
 }
 
-func setupLeaseTime4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	log.Print("loading `lease_time` plugin for DHCPv4")
 	if len(args) < 1 {
 		log.Error("No default lease time provided")

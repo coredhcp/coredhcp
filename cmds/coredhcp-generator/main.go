@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -25,13 +26,23 @@ var (
 	flagFromFile = flag.String("from", "", "Optional file name to get the plugin list from, one import path per line")
 )
 
+var funcMap = template.FuncMap{
+	"importname": func(importPath string) (string, error) {
+		parts := strings.Split(importPath, "/")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("no components found in import path '%s'", importPath)
+		}
+		return parts[len(parts)-1], nil
+	},
+}
+
 func main() {
 	flag.Parse()
 	data, err := ioutil.ReadFile(*flagTemplate)
 	if err != nil {
 		log.Fatalf("Failed to read template file '%s': %v", *flagTemplate, err)
 	}
-	t, err := template.New("coredhcp").Parse(string(data))
+	t, err := template.New("coredhcp").Funcs(funcMap).Parse(string(data))
 	if err != nil {
 		log.Fatalf("Template parsing failed: %v", err)
 	}

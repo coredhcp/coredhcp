@@ -19,8 +19,11 @@ import (
 
 var log = logger.GetLogger("plugins/server_id")
 
-func init() {
-	plugins.RegisterPlugin("server_id", setupServerID6, setupServerID4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "server_id",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 // v6ServerID is the DUID of the v6 server
@@ -95,8 +98,8 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, false
 }
 
-func setupServerID4(args ...string) (handler.Handler4, error) {
-	log.Print("loading `server_id` plugin for DHCPv4")
+func setup4(args ...string) (handler.Handler4, error) {
+	log.Printf("loading `server_id` plugin for DHCPv4 with args: %v", args)
 	if len(args) < 1 {
 		return nil, errors.New("need an argument")
 	}
@@ -111,8 +114,8 @@ func setupServerID4(args ...string) (handler.Handler4, error) {
 	return Handler4, nil
 }
 
-func setupServerID6(args ...string) (handler.Handler6, error) {
-	log.Print("loading `server_id` plugin for DHCPv6")
+func setup6(args ...string) (handler.Handler6, error) {
+	log.Printf("loading `server_id` plugin for DHCPv6 with args: %v", args)
 	if len(args) < 2 {
 		return nil, errors.New("need a DUID type and value")
 	}

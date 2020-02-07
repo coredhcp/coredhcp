@@ -17,22 +17,25 @@ import (
 
 var log = logger.GetLogger("plugins/router")
 
-func init() {
-	plugins.RegisterPlugin("router", setupRouter6, setupRouter4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "router",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 var (
 	routers []net.IP
 )
 
-func setupRouter6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	// TODO setup function for IPv6
-	log.Warning("not implemented for IPv6")
+	log.Warning("Not implemented for IPv6")
 	return Handler6, nil
 }
 
-func setupRouter4(args ...string) (handler.Handler4, error) {
-	log.Printf("loaded plugin for DHCPv4.")
+func setup4(args ...string) (handler.Handler4, error) {
+	log.Printf("Loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one router IP address")
 	}
