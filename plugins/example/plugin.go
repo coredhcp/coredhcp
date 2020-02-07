@@ -23,24 +23,37 @@ import (
 // information in the docstring of the logger package.
 var log = logger.GetLogger("plugins/example")
 
-// In the main package, you need to register your plugin at import time. To do
-// this, just do a blank import of this package, e.g.
+// Plugin wraps the information necessary to register a plugin.
+// In the main package, you need to export a `plugins.Plugin` object called
+// `Plugin`, so it can be registered into the plugin registry.
+// Just import your plugin, and fill the structure with plugin name and setup
+// functions:
+//
 // import (
-//     _ "github.com/coredhcp/coredhcp/plugins/example"
+//     "github.com/coredhcp/coredhcp/plugins"
+//     "github.com/coredhcp/coredhcp/plugins/example"
 // )
 //
-// This guarantees that `init` will be called at import time, and your plugin
-// is correctly registered.
+// var Plugin = plugins.Plugin{
+//     Name: "example",
+//     Setup6: setup6,
+//     Setup4: setup4,
+// }
 //
-// The `init` function then should call `plugins.RegisterPlugin`, specifying the
-// plugin name, the setup function for DHCPv6 packets, and the setup function
-// for DHCPv4 packets. The setup functions must implement the
-// `plugin.SetupFunc6` and `plugin.Setup4` interfaces.
+// Name is simply the name used to register the plugin. It must be unique to
+// other registered plugins, or the operation will fail. In other words, don't
+// declare plugins with colliding names.
+//
+// Setup6 and Setup4 are the setup functions for DHCPv6 and DHCPv4 traffic
+// handlers. They conform to the `plugins.SetupFunc6` and `plugins.SetupFunc4`
+// interfaces, so they must return a `plugins.Handler6` and a `plugins.Handler4`
+// respectively.
 // A `nil` setup function means that that protocol won't be handled by this
 // plugin.
 //
-// Note that importing the plugin is not enough: you have to explicitly specify
-// its use in the `config.yml` file, in the plugins section. For example:
+// Note that importing the plugin is not enough to use it: you have to
+// explicitly specify the intention to use it in the `config.yml` file, in the
+// plugins section. For example:
 //
 // server6:
 //   listen: '[::]547'
@@ -48,25 +61,27 @@ var log = logger.GetLogger("plugins/example")
 //   - server_id: LL aa:bb:cc:dd:ee:ff
 //   - file: "leases.txt"
 //
-func init() {
-	plugins.RegisterPlugin("example", setupExample6, setupExample4)
+var Plugin = plugins.Plugin{
+	Name:   "example",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
-// setupExample6 is the setup function to initialize the handler for DHCPv6
+// setup6 is the setup function to initialize the handler for DHCPv6
 // traffic. This function implements the `plugin.SetupFunc6` interface.
 // This function returns a `handler.Handler6` function, and an error if any.
 // In this example we do very little in the setup function, and just return the
 // `exampleHandler6` function. Such function will be called for every DHCPv6
 // packet that the server receives. Remember that a handler may not be called
 // for each packet, if the handler chain is interrupted before reaching it.
-func setupExample6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	log.Printf("loaded plugin for DHCPv6.")
 	return exampleHandler6, nil
 }
 
-// setupExample4 behaves like setupExample6, but for DHCPv4 packets. It
+// setup4 behaves like setupExample6, but for DHCPv4 packets. It
 // implements the `plugin.SetupFunc4` interface.
-func setupExample4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	return exampleHandler4, nil
 }

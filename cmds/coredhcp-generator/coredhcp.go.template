@@ -11,8 +11,9 @@ import (
 	"github.com/coredhcp/coredhcp"
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/coredhcp/coredhcp/plugins"
 {{range $plugin := .}}
-	_ "{{$plugin}}"
+	{{if eq $plugin "github.com/coredhcp/coredhcp/plugins/range"}}rangepl "{{$plugin}}"{{else}}"{{$plugin}}"{{end}}
 {{end}}
 	"github.com/sirupsen/logrus"
 )
@@ -22,6 +23,12 @@ var (
 	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
 	flagDebug       = flag.Bool("debug", false, "Enable debug output")
 )
+
+var desiredPlugins = []*plugins.Plugin{
+{{range $plugin := .}}
+{{$import := importname $plugin}}&{{if eq $import "range"}}rangepl{{else}}{{$import}}{{end}}.Plugin,
+{{end}}
+}
 
 func main() {
 	flag.Parse()
@@ -42,6 +49,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// register plugins
+	for _, plugin := range desiredPlugins {
+		if err := plugins.RegisterPlugin(plugin); err != nil {
+			log.Fatalf("Failed to register plugin '%s': %v", plugin.Name, err)
+		}
+	}
+	// start server
 	server := coredhcp.NewServer(config)
 	if err := server.Start(); err != nil {
 		log.Fatal(err)

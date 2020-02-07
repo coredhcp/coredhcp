@@ -41,8 +41,11 @@ import (
 
 var log = logger.GetLogger("plugins/nbp")
 
-func init() {
-	plugins.RegisterPlugin("nbp", setupNBP6, setupNBP4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "nbp",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 var (
@@ -57,7 +60,7 @@ func parseArgs(args ...string) (*url.URL, error) {
 	return url.Parse(args[0])
 }
 
-func setupNBP6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	u, err := parseArgs(args...)
 	if err != nil {
 		return nil, err
@@ -74,7 +77,7 @@ func setupNBP6(args ...string) (handler.Handler6, error) {
 	return nbpHandler6, nil
 }
 
-func setupNBP4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	u, err := parseArgs(args...)
 	if err != nil {
 		return nil, err

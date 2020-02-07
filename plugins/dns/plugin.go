@@ -17,8 +17,11 @@ import (
 
 var log = logger.GetLogger("plugins/dns")
 
-func init() {
-	plugins.RegisterPlugin("dns", setupDNS6, setupDNS4)
+// Plugin wraps the DNS plugin information.
+var Plugin = plugins.Plugin{
+	Name:   "dns",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 var (
@@ -26,7 +29,7 @@ var (
 	dnsServers4 []net.IP
 )
 
-func setupDNS6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
 	}
@@ -41,7 +44,7 @@ func setupDNS6(args ...string) (handler.Handler6, error) {
 	return Handler6, nil
 }
 
-func setupDNS4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")

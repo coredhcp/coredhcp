@@ -42,8 +42,11 @@ import (
 
 var log = logger.GetLogger("plugins/file")
 
-func init() {
-	plugins.RegisterPlugin("file", setupFile6, setupFile4)
+// Plugin wraps plugin registration information
+var Plugin = plugins.Plugin{
+	Name:   "file",
+	Setup6: setup6,
+	Setup4: setup4,
 }
 
 // StaticRecords holds a MAC -> IP address mapping
@@ -163,12 +166,12 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, true
 }
 
-func setupFile6(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	h6, _, err := setupFile(true, args...)
 	return h6, err
 }
 
-func setupFile4(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	_, h4, err := setupFile(false, args...)
 	return h4, err
 }
