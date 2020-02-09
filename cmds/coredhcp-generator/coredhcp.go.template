@@ -6,6 +6,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/coredhcp/coredhcp"
@@ -21,8 +23,25 @@ import (
 var (
 	flagLogFile     = flag.String("logfile", "", "Name of the log file to append to. Default: stdout/stderr only")
 	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
-	flagDebug       = flag.Bool("debug", false, "Enable debug output")
+	flagLogLevel    = flag.String("loglevel", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 )
+
+var logLevels = map[string]func(*logrus.Logger){
+        "none":    func(l *logrus.Logger) { l.SetOutput(ioutil.Discard) },
+        "debug":   func(l *logrus.Logger) { l.SetLevel(logrus.DebugLevel) },
+        "info":    func(l *logrus.Logger) { l.SetLevel(logrus.InfoLevel) },
+        "warning": func(l *logrus.Logger) { l.SetLevel(logrus.WarnLevel) },
+        "error":   func(l *logrus.Logger) { l.SetLevel(logrus.ErrorLevel) },
+        "fatal":   func(l *logrus.Logger) { l.SetLevel(logrus.FatalLevel) },
+}
+
+func getLogLevels() []string {
+        var levels []string
+        for k := range logLevels {
+                levels = append(levels, k)
+        }
+        return levels
+}
 
 var desiredPlugins = []*plugins.Plugin{
 {{range $plugin := .}}
@@ -33,10 +52,12 @@ var desiredPlugins = []*plugins.Plugin{
 func main() {
 	flag.Parse()
 	log := logger.GetLogger("main")
-	if *flagDebug {
-		log.Logger.SetLevel(logrus.DebugLevel)
-		log.Infof("Enabled debug logging")
+	fn, ok := logLevels[*flagLogLevel]
+	if !ok {
+		log.Fatalf("Invalid log level '%s'. Valid log levels are %v", *flagLogLevel, getLogLevels())
 	}
+	fn(log.Logger)
+	log.Infof("Setting log level to '%s'", *flagLogLevel)
 	if *flagLogFile != "" {
 		log.Infof("Logging to file %s", *flagLogFile)
 		logger.WithFile(log, *flagLogFile)
