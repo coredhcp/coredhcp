@@ -110,7 +110,7 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if serverID.To4() == nil {
 		return nil, errors.New("not a valid IPv4 address")
 	}
-	v4ServerID = serverID
+	v4ServerID = serverID.To4()
 	return Handler4, nil
 }
 
