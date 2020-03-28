@@ -38,19 +38,19 @@ func setup6(args ...string) (handler.Handler6, error) {
 func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) != 1 {
-		return nil, errors.New("need at least one netmask IP address")
+		return nil, errors.New("need exactly one netmask IP address")
 	}
 	netmaskIP := net.ParseIP(args[0])
 	if netmaskIP.IsUnspecified() {
-		return nil, errors.New("netmask is not valid, got: " + args[1])
+		return nil, errors.New("netmask is unspecified, got: " + args[0])
 	}
 	netmaskIP = netmaskIP.To4()
 	if netmaskIP == nil {
-		return nil, errors.New("expected an netmask address, got: " + args[1])
+		return nil, errors.New("expected a v4 netmask address, got: " + args[0])
 	}
 	netmask = net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
 	if !checkValidNetmask(netmask) {
-		return nil, errors.New("netmask is not valid, got: " + args[1])
+		return nil, errors.New("netmask is not valid, got: " + args[0])
 	}
 	log.Printf("loaded client netmask")
 	return Handler4, nil
