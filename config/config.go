@@ -294,6 +294,15 @@ func (c *Config) parseListen(ver protocolVersion) ([]net.UDPAddr, error) {
 	}
 
 	listen := c.v.Get(fmt.Sprintf("server%d.listen", ver))
+
+	// Provide an emulation of the old keyword "interface" to avoid breaking config files
+	if iface := c.v.Get(fmt.Sprintf("server%d.interface", ver)); iface != nil && listen != nil {
+		return nil, ConfigErrorFromString("interface is a deprecated alias for listen, " +
+			"both cannot be used at the same time. Choose one and remove the other.")
+	} else if iface != nil {
+		listen = "%" + cast.ToString(iface)
+	}
+
 	if listen == nil {
 		return defaultListen(ver)
 	}
