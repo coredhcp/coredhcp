@@ -143,13 +143,13 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	resp.AddOption(&dhcpv6.OptIANA{
 		// FIXME copy this field from the client, reject/drop if missing
 		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
-		Options: []dhcpv6.Option{
+		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
 				IPv6Addr:          ipaddr,
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
-		},
+		}},
 	})
 	return resp, false
 }

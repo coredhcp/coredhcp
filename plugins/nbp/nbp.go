@@ -101,16 +101,14 @@ func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		// drop the request, this is probably a critical error in the packet.
 		return nil, true
 	}
-	if oro := decap.GetOption(dhcpv6.OptionORO); len(oro) > 0 {
-		for _, code := range oro[0].(*dhcpv6.OptRequestedOption).RequestedOptions() {
-			if code == dhcpv6.OptionBootfileURL {
-				// bootfile URL is requested
-				resp.AddOption(opt59)
-			} else if code == dhcpv6.OptionBootfileParam {
-				// optionally add opt60, bootfile params, if requested
-				if opt60 != nil {
-					resp.AddOption(opt60)
-				}
+	for _, code := range decap.Options.RequestedOptions() {
+		if code == dhcpv6.OptionBootfileURL {
+			// bootfile URL is requested
+			resp.AddOption(opt59)
+		} else if code == dhcpv6.OptionBootfileParam {
+			// optionally add opt60, bootfile params, if requested
+			if opt60 != nil {
+				resp.AddOption(opt60)
 			}
 		}
 	}

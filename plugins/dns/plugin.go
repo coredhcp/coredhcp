@@ -69,7 +69,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 
 	if decap.IsOptionRequested(dhcpv6.OptionDNSRecursiveNameServer) {
-		resp.UpdateOption(&dhcpv6.OptDNSRecursiveNameServer{NameServers: dnsServers6})
+		resp.UpdateOption(dhcpv6.OptDNS(dnsServers6...))
 	}
 	return resp, false
 }
