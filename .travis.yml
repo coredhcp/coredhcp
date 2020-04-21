@@ -8,7 +8,6 @@ dist: bionic
 go:
   - 1.14.x
   - 1.13.x
-  - 1.12.x
   - master
 
 env:
