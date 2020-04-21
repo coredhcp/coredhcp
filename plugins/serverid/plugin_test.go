@@ -88,13 +88,10 @@ func TestAddServerIDV6(t *testing.T) {
 		t.Fatal("plugin did not return an answer")
 	}
 
-	if opt := resp.GetOneOption(dhcpv6.OptionServerID); opt == nil {
+	if opt := resp.(*dhcpv6.Message).Options.ServerID(); opt == nil {
 		t.Fatal("plugin did not add a ServerID option")
-	} else {
-		sid := opt.(*dhcpv6.OptServerId)
-		if !sid.Sid.Equal(*v6ServerID) {
-			t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, sid.Sid)
-		}
+	} else if !opt.Equal(*v6ServerID) {
+		t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, opt)
 	}
 }
 

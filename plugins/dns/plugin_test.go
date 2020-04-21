@@ -18,9 +18,7 @@ func TestAddServer6(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.MessageType = dhcpv6.MessageTypeRequest
-	oro := dhcpv6.OptRequestedOption{}
-	oro.AddRequestedOption(dhcpv6.OptionDNSRecursiveNameServer)
-	req.AddOption(&oro)
+	req.AddOption(dhcpv6.OptRequestedOption(dhcpv6.OptionDNSRecursiveNameServer))
 
 	stub, err := dhcpv6.NewMessage()
 	if err != nil {
@@ -45,7 +43,7 @@ func TestAddServer6(t *testing.T) {
 	if len(opts) != 1 {
 		t.Fatalf("Expected 1 RDNSS option, got %d: %v", len(opts), opts)
 	}
-	foundServers := opts[0].(*dhcpv6.OptDNSRecursiveNameServer).NameServers
+	foundServers := resp.(*dhcpv6.Message).Options.DNS()
 	// XXX: is enforcing the order relevant here ?
 	for i, srv := range foundServers {
 		if !srv.Equal(dnsServers6[i]) {
@@ -63,7 +61,7 @@ func TestNotRequested6(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.MessageType = dhcpv6.MessageTypeRequest
-	req.AddOption(&dhcpv6.OptRequestedOption{})
+	req.AddOption(dhcpv6.OptRequestedOption())
 
 	stub, err := dhcpv6.NewMessage()
 	if err != nil {

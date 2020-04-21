@@ -46,30 +46,27 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		return nil, true
 	}
 
-	if opt := msg.GetOneOption(dhcpv6.OptionServerID); opt != nil {
+	if sid := msg.Options.ServerID(); sid != nil {
 		// RFC8415 §16.{2,5,7}
 		// These message types MUST be discarded if they contain *any* ServerID option
-		if msg.Type() == dhcpv6.MessageTypeSolicit ||
-			msg.Type() == dhcpv6.MessageTypeConfirm ||
-			msg.Type() == dhcpv6.MessageTypeRebind {
+		if msg.MessageType == dhcpv6.MessageTypeSolicit ||
+			msg.MessageType == dhcpv6.MessageTypeConfirm ||
+			msg.MessageType == dhcpv6.MessageTypeRebind {
 			return nil, true
 		}
 
 		// Approximately all others MUST be discarded if the ServerID doesn't match
-		sid := opt.(*dhcpv6.OptServerId)
-		if !sid.Sid.Equal(*v6ServerID) {
-			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid.Sid, *v6ServerID)
+		if !sid.Equal(*v6ServerID) {
+			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid, *v6ServerID)
 			return nil, true
 		}
-	} else {
+	} else if msg.MessageType == dhcpv6.MessageTypeRequest ||
+		msg.MessageType == dhcpv6.MessageTypeRenew ||
+		msg.MessageType == dhcpv6.MessageTypeDecline ||
+		msg.MessageType == dhcpv6.MessageTypeRelease {
 		// RFC8415 §16.{6,8,10,11}
 		// These message types MUST be discarded if they *don't* contain a ServerID option
-		if msg.Type() == dhcpv6.MessageTypeRequest ||
-			msg.Type() == dhcpv6.MessageTypeRenew ||
-			msg.Type() == dhcpv6.MessageTypeDecline ||
-			msg.Type() == dhcpv6.MessageTypeRelease {
-			return nil, true
-		}
+		return nil, true
 	}
 	dhcpv6.WithServerID(*v6ServerID)(resp)
 	return resp, false
