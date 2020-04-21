@@ -1,6 +1,6 @@
 module github.com/coredhcp/coredhcp
 
-go 1.12
+go 1.13
 
 require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
