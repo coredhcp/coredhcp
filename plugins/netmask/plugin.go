@@ -13,7 +13,6 @@ import (
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
 var log = logger.GetLogger("plugins/netmask")
@@ -21,19 +20,12 @@ var log = logger.GetLogger("plugins/netmask")
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
 	Name:   "netmask",
-	Setup6: setup6,
 	Setup4: setup4,
 }
 
 var (
 	netmask net.IPMask
 )
-
-func setup6(args ...string) (handler.Handler6, error) {
-	// TODO setup function for IPv6
-	log.Warning("not implemented for IPv6")
-	return Handler6, nil
-}
 
 func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
@@ -56,17 +48,12 @@ func setup4(args ...string) (handler.Handler4, error) {
 	return Handler4, nil
 }
 
-// Handler6 not implemented only IPv4
-func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
-	// TODO add IPv6 netmask to the response
-	return resp, false
-}
-
 //Handler4 handles DHCPv4 packets for the netmask plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptSubnetMask(netmask))
 	return resp, false
 }
+
 func checkValidNetmask(netmask net.IPMask) bool {
 	netmaskInt := binary.BigEndian.Uint32(netmask)
 	x := ^netmaskInt
