@@ -2,6 +2,7 @@ github.com/coredhcp/coredhcp/plugins/dns
 github.com/coredhcp/coredhcp/plugins/file
 github.com/coredhcp/coredhcp/plugins/leasetime
 github.com/coredhcp/coredhcp/plugins/netmask
+github.com/coredhcp/coredhcp/plugins/nbp
 github.com/coredhcp/coredhcp/plugins/range
 github.com/coredhcp/coredhcp/plugins/router
 github.com/coredhcp/coredhcp/plugins/serverid
