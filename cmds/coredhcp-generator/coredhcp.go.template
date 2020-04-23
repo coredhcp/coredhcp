@@ -10,13 +10,16 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/coredhcp/coredhcp"
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/coredhcp/coredhcp/server"
+
 	"github.com/coredhcp/coredhcp/plugins"
-{{range $plugin := .}}
-	{{if eq $plugin "github.com/coredhcp/coredhcp/plugins/range"}}rangepl "{{$plugin}}"{{else}}"{{$plugin}}"{{end}}
-{{end}}
+{{- range $plugin := .}}
+	{{- /* We import all plugins as pl_<pluginname> to avoid conflicts with reserved keywords */}}
+	{{importname $plugin}} "{{$plugin}}"
+{{- end}}
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -44,9 +47,9 @@ func getLogLevels() []string {
 }
 
 var desiredPlugins = []*plugins.Plugin{
-{{range $plugin := .}}
-{{$import := importname $plugin}}&{{if eq $import "range"}}rangepl{{else}}{{$import}}{{end}}.Plugin,
-{{end}}
+{{- range $plugin := .}}
+	&{{importname $plugin}}.Plugin,
+{{- end}}
 }
 
 func main() {
