@@ -43,3 +43,8 @@ script: |
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+
+jobs:
+  include:
+    - name: Generator/main entrypoint drift
+      script: ./.travis/check-generator-main.sh
