@@ -137,4 +137,5 @@ func main() {
 		log.Fatalf("Template execution failed: %v", err)
 	}
 	log.Printf("Generated file '%s'. You can build it by running 'go build' in the output directory.", outfile)
+	fmt.Print(path.Dir(outfile))
 }
