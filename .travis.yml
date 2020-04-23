@@ -1,11 +1,13 @@
 language: go
 
-sudo: required
+os: linux
+dist: bionic
 
 go:
-  - "1.12"
-  - "1.13"
-  - tip
+  - 1.14.x
+  - 1.13.x
+  - 1.12.x
+  - master
 
 env:
   global:
