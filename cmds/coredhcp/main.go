@@ -15,14 +15,15 @@ import (
 	"github.com/coredhcp/coredhcp/server"
 
 	"github.com/coredhcp/coredhcp/plugins"
-	"github.com/coredhcp/coredhcp/plugins/dns"
-	"github.com/coredhcp/coredhcp/plugins/file"
-	"github.com/coredhcp/coredhcp/plugins/leasetime"
-	"github.com/coredhcp/coredhcp/plugins/nbp"
-	"github.com/coredhcp/coredhcp/plugins/netmask"
-	rangepl "github.com/coredhcp/coredhcp/plugins/range"
-	"github.com/coredhcp/coredhcp/plugins/router"
-	"github.com/coredhcp/coredhcp/plugins/serverid"
+	pl_dns "github.com/coredhcp/coredhcp/plugins/dns"
+	pl_file "github.com/coredhcp/coredhcp/plugins/file"
+	pl_leasetime "github.com/coredhcp/coredhcp/plugins/leasetime"
+	pl_nbp "github.com/coredhcp/coredhcp/plugins/nbp"
+	pl_netmask "github.com/coredhcp/coredhcp/plugins/netmask"
+	pl_range "github.com/coredhcp/coredhcp/plugins/range"
+	pl_router "github.com/coredhcp/coredhcp/plugins/router"
+	pl_serverid "github.com/coredhcp/coredhcp/plugins/serverid"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,14 +51,14 @@ func getLogLevels() []string {
 }
 
 var desiredPlugins = []*plugins.Plugin{
-	&dns.Plugin,
-	&file.Plugin,
-	&leasetime.Plugin,
-	&nbp.Plugin,
-	&netmask.Plugin,
-	&rangepl.Plugin,
-	&router.Plugin,
-	&serverid.Plugin,
+	&pl_dns.Plugin,
+	&pl_file.Plugin,
+	&pl_leasetime.Plugin,
+	&pl_nbp.Plugin,
+	&pl_netmask.Plugin,
+	&pl_range.Plugin,
+	&pl_router.Plugin,
+	&pl_serverid.Plugin,
 }
 
 func main() {

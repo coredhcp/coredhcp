@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -133,6 +134,7 @@ func main() {
 	for pl := range plugins {
 		pluginList = append(pluginList, pl)
 	}
+	sort.Strings(pluginList)
 	if err := t.Execute(outFD, pluginList); err != nil {
 		log.Fatalf("Template execution failed: %v", err)
 	}
