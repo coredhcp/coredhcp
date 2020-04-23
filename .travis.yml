@@ -3,6 +3,8 @@ language: go
 os: linux
 dist: bionic
 
+# The first element in this list will be the default for the non-matrix jobs,
+# so you usually want the latest version first
 go:
   - 1.14.x
   - 1.13.x
@@ -12,34 +14,28 @@ go:
 env:
   global:
     - GO111MODULE=on
-  matrix:
-    - TEST_SUITE=unit
-    - TEST_SUITE=linters
 
 before_install:
   - go get -t -v ./...
   - go get -t -v github.com/stretchr/testify/...
 
+# This is the script for the matrix tests (ran with each version of go)
 script: |
-  set -x
-  case $TEST_SUITE in
-  unit)
       ./.travis/setup-integ.sh
       ./.travis/tests.sh
-      ;;
-  linters)
-      ./.travis/linters.sh
-      ;;
-  *)
-      echo "[!] Unknown test suite: ${TEST_SUITE}. Exiting."
-      exit 1
-  esac
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
 
+# These are individual jobs unrelated to the matrix tests
 jobs:
   include:
     - name: Generator/main entrypoint drift
       script: ./.travis/check-generator-main.sh
+    - name: license headers
+      before_install: go get -u github.com/u-root/u-root/tools/checklicenses
+      script: checklicenses -c .travis/checklicenses_config.json
+    - name: golangci-lint
+      before_install: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+      script: golangci-lint run
