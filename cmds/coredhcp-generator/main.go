@@ -18,6 +18,7 @@ import (
 
 const (
 	defaultTemplateFile = "coredhcp.go.template"
+	importBase          = "github.com/coredhcp/coredhcp/"
 )
 
 var (
@@ -51,6 +52,16 @@ func main() {
 		pl := strings.TrimSpace(pl)
 		if pl == "" {
 			continue
+		}
+		if !strings.ContainsRune(pl, '/') {
+			// A bare name was specified, not a full import path.
+			// Coredhcp plugins aren't in the standard library, and it's unlikely someone
+			// would put them at the base of $GOPATH/src.
+			// Assume this is one of the builtin plugins. If needed, use the -from option
+			// which always requires (and uses) exact paths
+
+			// XXX: we could also look into github.com/coredhcp/plugins
+			pl = importBase + pl
 		}
 		plugins[pl] = true
 	}
