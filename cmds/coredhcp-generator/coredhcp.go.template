@@ -30,20 +30,20 @@ var (
 )
 
 var logLevels = map[string]func(*logrus.Logger){
-        "none":    func(l *logrus.Logger) { l.SetOutput(ioutil.Discard) },
-        "debug":   func(l *logrus.Logger) { l.SetLevel(logrus.DebugLevel) },
-        "info":    func(l *logrus.Logger) { l.SetLevel(logrus.InfoLevel) },
-        "warning": func(l *logrus.Logger) { l.SetLevel(logrus.WarnLevel) },
-        "error":   func(l *logrus.Logger) { l.SetLevel(logrus.ErrorLevel) },
-        "fatal":   func(l *logrus.Logger) { l.SetLevel(logrus.FatalLevel) },
+	"none":    func(l *logrus.Logger) { l.SetOutput(ioutil.Discard) },
+	"debug":   func(l *logrus.Logger) { l.SetLevel(logrus.DebugLevel) },
+	"info":    func(l *logrus.Logger) { l.SetLevel(logrus.InfoLevel) },
+	"warning": func(l *logrus.Logger) { l.SetLevel(logrus.WarnLevel) },
+	"error":   func(l *logrus.Logger) { l.SetLevel(logrus.ErrorLevel) },
+	"fatal":   func(l *logrus.Logger) { l.SetLevel(logrus.FatalLevel) },
 }
 
 func getLogLevels() []string {
-        var levels []string
-        for k := range logLevels {
-                levels = append(levels, k)
-        }
-        return levels
+	var levels []string
+	for k := range logLevels {
+		levels = append(levels, k)
+	}
+	return levels
 }
 
 var desiredPlugins = []*plugins.Plugin{
@@ -71,7 +71,7 @@ func main() {
 	}
 	config, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 	// register plugins
 	for _, plugin := range desiredPlugins {
@@ -79,13 +79,14 @@ func main() {
 			log.Fatalf("Failed to register plugin '%s': %v", plugin.Name, err)
 		}
 	}
+
 	// start server
-	server := coredhcp.NewServer(config)
-	if err := server.Start(); err != nil {
+	srv, err := server.Start(config)
+	if err != nil {
 		log.Fatal(err)
 	}
-	if err := server.Wait(); err != nil {
-		log.Error(err)
+	if err := srv.Wait(); err != nil {
+		log.Print(err)
 	}
 	time.Sleep(time.Second)
 }
