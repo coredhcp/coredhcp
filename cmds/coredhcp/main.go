@@ -2,6 +2,9 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// This is a generated file, edits should be made in the corresponding source file
+// And this file regenerated using `coredhcp-generator -from core-plugins.txt`
+
 package main
 
 import (
