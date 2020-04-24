@@ -37,8 +37,21 @@ var funcMap = template.FuncMap{
 	},
 }
 
+func usage() {
+	fmt.Fprintf(flag.CommandLine.Output(),
+		"%s [-template tpl] [-outfile out] [-from pluginlist] [plugin [plugin...]]\n",
+		os.Args[0],
+	)
+	flag.PrintDefaults()
+	fmt.Fprintln(flag.CommandLine.Output(), `  plugin
+	Plugin name to include, as go import path.
+	Short names can be used for builtin coredhcp plugins (eg "serverid")`)
+}
+
 func main() {
+	flag.Usage = usage
 	flag.Parse()
+
 	data, err := ioutil.ReadFile(*flagTemplate)
 	if err != nil {
 		log.Fatalf("Failed to read template file '%s': %v", *flagTemplate, err)
