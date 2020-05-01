@@ -127,6 +127,17 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 
 // Handler6 handles DHCPv6 packets for the file plugin
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	m, err := req.GetInnerMessage()
+	if err != nil {
+		log.Errorf("BUG: could not decapsulate: %v", err)
+		return nil, true
+	}
+
+	if m.Options.OneIANA() == nil {
+		log.Debug("No address requested")
+		return resp, false
+	}
+
 	mac, err := dhcpv6.ExtractMAC(req)
 	if err != nil {
 		log.Warningf("Could not find client MAC, passing")
@@ -140,9 +151,9 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		return resp, false
 	}
 	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+
 	resp.AddOption(&dhcpv6.OptIANA{
-		// FIXME copy this field from the client, reject/drop if missing
-		IaId: [4]byte{0xaa, 0xbb, 0xcc, 0xdd},
+		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
 				IPv6Addr:          ipaddr,
