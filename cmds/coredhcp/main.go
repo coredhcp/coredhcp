@@ -34,6 +34,7 @@ var (
 	flagLogFile     = flag.String("logfile", "", "Name of the log file to append to. Default: stdout/stderr only")
 	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
 	flagLogLevel    = flag.String("loglevel", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
+	flagConfig      = flag.String("conf", "", "Use this configuration file instead of the default location")
 )
 
 var logLevels = map[string]func(*logrus.Logger){
@@ -81,7 +82,7 @@ func main() {
 		log.Infof("Disabling logging to stdout/stderr")
 		logger.WithNoStdOutErr(log)
 	}
-	config, err := config.Load()
+	config, err := config.Load(*flagConfig)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
