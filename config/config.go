@@ -54,14 +54,20 @@ type PluginConfig struct {
 
 // Load reads a configuration file and returns a Config object, or an error if
 // any.
-func Load() (*Config, error) {
+func Load(pathOverride string) (*Config, error) {
 	log.Print("Loading configuration")
 	c := New()
 	c.v.SetConfigType("yml")
-	c.v.SetConfigName("config")
-	c.v.AddConfigPath(".")
-	c.v.AddConfigPath("$HOME/.coredhcp/")
-	c.v.AddConfigPath("/etc/coredhcp/")
+	if pathOverride != "" {
+		c.v.SetConfigFile(pathOverride)
+	} else {
+		c.v.SetConfigName("config")
+		c.v.AddConfigPath(".")
+		c.v.AddConfigPath("$XDG_CONFIG_HOME/coredhcp/")
+		c.v.AddConfigPath("$HOME/.coredhcp/")
+		c.v.AddConfigPath("/etc/coredhcp/")
+	}
+
 	if err := c.v.ReadInConfig(); err != nil {
 		return nil, err
 	}
