@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/coredhcp/coredhcp/config"
@@ -35,6 +36,7 @@ var (
 	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
 	flagLogLevel    = flag.String("loglevel", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 	flagConfig      = flag.String("conf", "", "Use this configuration file instead of the default location")
+	flagPlugins     = flag.Bool("plugins", false, "list plugins")
 )
 
 var logLevels = map[string]func(*logrus.Logger){
@@ -67,6 +69,14 @@ var desiredPlugins = []*plugins.Plugin{
 
 func main() {
 	flag.Parse()
+
+	if *flagPlugins {
+		for _, p := range desiredPlugins {
+			fmt.Println(p.Name)
+		}
+		os.Exit(0)
+	}
+
 	log := logger.GetLogger("main")
 	fn, ok := logLevels[*flagLogLevel]
 	if !ok {
