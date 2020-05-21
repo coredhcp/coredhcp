@@ -92,8 +92,14 @@ func AddPrefixes(ip net.IP, n, unit uint64) (net.IP, error) {
 	} else if n == 0 {
 		return ip, nil
 	}
+	if len(ip) != 16 {
+		// We don't actually care if they're true v6 or v4-mapped,
+		// but they need to be 128-bit to handle as 64-bit ints
+		return net.IP{}, errors.New("AddPrefixes needs 128-bit IPs")
+	}
 
 	// Compute as pairs of uint64 for easier operations
+	// This could all be 1 function call if go had 128-bit integers
 	iph, ipl := binary.BigEndian.Uint64(ip[:8]), binary.BigEndian.Uint64(ip[8:])
 
 	// Compute `n` /`unit` subnets as uint64 pair

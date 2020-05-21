@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package fixedsize
+package bitmap
 
 import (
 	"net"
@@ -14,7 +14,7 @@ func getAllocator() *Allocator {
 	if err != nil {
 		panic(err)
 	}
-	alloc, err := NewFixedSizeAllocator(*prefix, 64)
+	alloc, err := NewBitmapAllocator(*prefix, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +42,7 @@ func TestAlloc(t *testing.T) {
 
 func TestExhaust(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("2001:db8::/62")
-	alloc, _ := NewFixedSizeAllocator(*prefix, 64)
+	alloc, _ := NewBitmapAllocator(*prefix, 64)
 
 	allocd := []net.IPNet{}
 	for i := 0; i < 4; i++ {
@@ -58,7 +58,10 @@ func TestExhaust(t *testing.T) {
 		t.Fatalf("Successfully allocated more prefixes than there are in the pool")
 	}
 
-	alloc.Free(allocd[1])
+	err = alloc.Free(allocd[1])
+	if err != nil {
+		t.Fatalf("Could not free: %v", err)
+	}
 	net, err := alloc.Allocate(allocd[1])
 	if err != nil {
 		t.Fatalf("Could not reallocate after free: %v", err)

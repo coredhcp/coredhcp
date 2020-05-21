@@ -8,7 +8,7 @@
 // range is much larger than the expected number of clients. Also is what KEA
 // does so at least it's not worse than that
 
-package fixedsize
+package bitmap
 
 import (
 	"errors"
@@ -19,10 +19,10 @@ import (
 	"github.com/willf/bitset"
 
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins/prefix/allocators"
+	"github.com/coredhcp/coredhcp/plugins/allocators"
 )
 
-var log = logger.GetLogger("plugins/prefix/allocator")
+var log = logger.GetLogger("plugins/allocators/bitmap")
 
 // Allocator is a prefix allocator allocating in chunks of a fixed size
 // regardless of the size requested by the client.
@@ -31,9 +31,6 @@ type Allocator struct {
 	containing net.IPNet
 	page       int
 	bitmap     *bitset.BitSet
-}
-
-type block struct {
 }
 
 // prefix must verify: containing.Mask.Size < prefix.Mask.Size < page
@@ -101,9 +98,9 @@ func (a *Allocator) Free(prefix net.IPNet) error {
 	return nil
 }
 
-// NewFixedSizeAllocator creates a new allocator, allocating /`size` prefixes
+// NewBitmapAllocator creates a new allocator, allocating /`size` prefixes
 // carved out of the given `pool` prefix
-func NewFixedSizeAllocator(pool net.IPNet, size int) (*Allocator, error) {
+func NewBitmapAllocator(pool net.IPNet, size int) (*Allocator, error) {
 
 	poolSize, _ := pool.Mask.Size()
 	allocOrder := size - poolSize
@@ -117,7 +114,7 @@ func NewFixedSizeAllocator(pool net.IPNet, size int) (*Allocator, error) {
 	}
 
 	if !(1<<uint(allocOrder) <= bitset.Cap()) {
-		return nil, errors.New("Can't fit this pool using the fixedsize allocator")
+		return nil, errors.New("Can't fit this pool using the bitmap allocator")
 	}
 
 	alloc := Allocator{

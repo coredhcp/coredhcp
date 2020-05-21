@@ -26,8 +26,8 @@ import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
-	"github.com/coredhcp/coredhcp/plugins/prefix/allocators"
-	"github.com/coredhcp/coredhcp/plugins/prefix/allocators/fixedsize"
+	"github.com/coredhcp/coredhcp/plugins/allocators"
+	"github.com/coredhcp/coredhcp/plugins/allocators/bitmap"
 )
 
 var log = logger.GetLogger("plugins/prefix")
@@ -55,7 +55,7 @@ func setupPrefix(args ...string) (handler.Handler6, error) {
 	}
 
 	// TODO: select allocators based on heuristics or user configuration
-	alloc, err := fixedsize.NewFixedSizeAllocator(*prefix, allocSize)
+	alloc, err := bitmap.NewBitmapAllocator(*prefix, allocSize)
 	if err != nil {
 		return nil, fmt.Errorf("Could not initialize prefix allocator: %v", err)
 	}
