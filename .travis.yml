@@ -37,5 +37,5 @@ jobs:
       before_install: go get -u github.com/u-root/u-root/tools/checklicenses
       script: checklicenses -c .travis/checklicenses_config.json
     - name: golangci-lint
-      before_install: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+      before_install: GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint
       script: golangci-lint run

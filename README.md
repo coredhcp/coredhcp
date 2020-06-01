@@ -109,4 +109,5 @@ of a simple plugin that prints a packet every time it is received by the server.
 # Authors
 
 * [Andrea Barberio](https://github.com/insomniacslk)
+* [Anatole Denis](https://github.com/natolumin)
 * [Pablo Mazzini](https://github.com/pmazzini)
