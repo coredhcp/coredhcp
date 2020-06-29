@@ -12,27 +12,21 @@ This is still a work-in-progress
 
 In CoreDHCP almost everything is implemented as a plugin. The order of plugins in the configuration matters: every request is evaluated calling each plugin in order, until one breaks the evaluation and responds to, or drops, the request.
 
-The following configuration runs a DHCPv6-only server, listening on all the interfaces, using a custom DUID-LL as server ID, and reading the leases from a text file.
+The following configuration runs a DHCPv6-only server, listening on all the interfaces, using a custom server ID and DNS, and reading the leases from a text file.
 
 ```
 server6:
-    listen: '[::]:547'
+    # this server will listen on all the available interfaces, on the default
+    # DHCPv6 server port, and will join the default multicast groups. For more
+    # control, see the `listen` directive in cmds/coredhcp/config.yml.example .
     plugins:
         - server_id: LL 00:de:ad:be:ef:00
         - file: "leases.txt"
-        # - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
-
-#server4:
-#    listen: '0.0.0.0:67'
-#    plugins:
-        # - server_id: 10.10.10.1
-        # - dns: 8.8.8.8 8.8.4.4
-        # - router: 10.10.10.1
-        # - netmask: 255.255.255.0
-        # - range: leases.txt 10.10.10.100 10.10.10.200 60s
+        - dns: 8.8.8.8 8.8.4.4 2001:4860:4860::8888 2001:4860:4860::8844
 ```
 
-See also [config.yml.example](cmds/coredhcp/config.yml.example).
+For more complex examples, like how to listen on specific interfaces and
+configure other plugins, see [config.yml.example](cmds/coredhcp/config.yml.example).
 
 ## Build and run
 
