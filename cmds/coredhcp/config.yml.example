@@ -1,20 +1,151 @@
-server6:
-    # Optionally add a listen statement as follows
-    # listen:
-        # - "[ff02::1:2]" # Listens on a link-local multicast address on all interfaces
-        # - "[fe80::1%eth0]:547" # Listens on a specific interface
-        # - "[::]" # Listens on the wildcard address. *No multicast group will be joined*
-    # Otherwise the default is ff02::1:2 on all interfaces and ff05::1:3 on the default multicast interface
-    plugins:
-        - server_id: LL 00:de:ad:be:ef:00
-        - file: "leases.txt"
-        # - dns: 2001:4860:4860::8888 2001:4860:4860::8844
+# CoreDHCP configuration (yaml)
 
-server4:
+# In this file, lines starting with "## " represent default values,
+# while uncommented lines are examples which have no default value
+
+# The base level configuration has two sections, one for each protocol version
+# (DHCPv4 and DHCPv6). There is no shared configuration at the moment.
+# At a high level, both accept the same structure of configuration
+
+# DHCPv6 configuration
+server6:
+    # listen is an optional section to specify how the server binds to an
+    # interface or address.
+    # If unset, the server will join the link-layer multicast group for all
+    # dhcp servers and relays on each interface, as well as the site-scoped
+    # multicast group for all dhcp servers.
+    # Note that in this default configuration the server will not handle
+    # unicast datagrams, and is equivalent to:
+    ## listen:
+        ## - "[ff02::1:2]"
+        ## - "[ff05::1:3]"
+
+    # In general, listen takes a list of addresses, with the general syntax
+    # "[address%interface]:port", where each part is optional.
+    # Omitting the address results in the wildcard address being used
+    # Omitting the interface skips binding the listener to a specific interface
+    # and listens on all interfaces instead
+    # Omitting the port uses the default port for DHCPv6 (547)
+    #
+    # For example:
+    # - "[::]"
+    # Listen on the wildcard address on all interfaces on the default port.
+    # Note that no multicast group will be joined, so this will *not* work with
+    # most clients
+    #
+    # - ":44480"
+    # Listens on the wildcard address on a specific port. This can be used if
+    # you have a relay setup that can contact this server using unicast
+    #
+    # - "[::%eno1]"
+    # Listens on the wildcard address on one interface. This can be used if you
+    # want to spawn multiple servers with different configurations for multiple
+    # interfaces, behind a relay that can use unicast
+    #
+    # There are some special considerations for multicast:
+    # - "[ff02::1:2%eno1]"
+    # Listens on a link-layer multicast address bound to an interface. Also
+    # used to spawn multiple servers, but for clients on the same subnet
+    #
+    # - "[ff05::1:3%eno1]"
+    # Joining a multicast group with an interface allows to skip the default
+    # routing table when responding to clients, which can be useful if
+    # multicast is not otherwise configured system-wide
+    #
+    # - "[ff02::1:2]"
+    # Using a multicast address without an interface will be auto-expanded, so
+    # that it listens on all available interfaces
+
+
+    # plugins is a mandatory section, which defines how requests are handled.
+    # It is a list of maps, matching plugin names to their arguments.
+    # The order is meaningful, as incoming requests are handled by each plugin
+    # in turn. There is no default value for a plugin configuration, and a
+    # plugin that is not mentioned will not be loaded at all
+    #
+    # The following contains examples of the most common, builtin plugins.
+    # External plugins should document their arguments in their own
+    # documentations or readmes
     plugins:
-        # - lease_time: 60s
-        # - server_id: 10.10.10.1
-        # - dns: 8.8.8.8 8.8.4.4
-        # - router: 10.10.10.1
-        # - netmask: 255.255.255.0
-        # - range: leases.txt 10.10.10.100 10.10.10.200 60s
+        # server_id is mandatory for RFC-compliant operation.
+        # - server_id: <DUID format> <LL address>
+        # The supported DUID formats are LL and LLT
+        - server_id: LL 00:de:ad:be:ef:00
+
+        # file serves leases defined in a static file, matching link-layer addresses to IPs
+        # - file: <file name>
+        # The file format is one lease per line, "<hw address> <IPv6>"
+        - file: "leases.txt"
+
+        # dns adds information about available DNS resolvers to the responses
+        # - dns: <resolver IP> <... resolver IPs>
+        - dns: 2001:4860:4860::8888 2001:4860:4860::8844
+
+        # nbp can add information about the location of a network boot program
+        # - nbp: <NBP URL>
+        - nbp: "http://[2001:db8:a::1]/nbp"
+
+# DHCPv4 configuration
+server4:
+    # listen is an optional section to specify how the server binds to an
+    # interface or address.
+    # If unset, the server will listen on the broadcast address on all
+    # interfaces, equivalent to:
+    ## listen:
+        ## - "0.0.0.0"
+
+    # In general, listen takes a list of addresses, with the general syntax
+    # "address%interface:port", where each part is optional.
+    # * Omitting the address results in the wildcard address being used
+    # * Omitting the interface skips binding the listener to a specific interface
+    #   and listens on all interfaces instead
+    # * Omitting the port uses the default port for DHCPv4 (67)
+    #
+    # For example:
+    # - ":44480" Listens on a specific port.
+    # - "%eno1" Listens on the wildcard address on one interface.
+    # - "192.0.2.1%eno1:44480" with all parts
+
+    # plugins is a mandatory section, which defines how requests are handled.
+    # It is a list of maps, matching plugin names to their arguments.
+    # The order is meaningful, as incoming requests are handled by each plugin
+    # in turn. There is no default value for a plugin configuration, and a
+    # plugin that is not mentioned will not be loaded at all
+    #
+    # The following contains examples of the most common, builtin plugins.
+    # External plugins should document their arguments in their own
+    # documentations or readmes
+    plugins:
+        # lease_time sets the default lease time for advertised leases
+        # - lease_time: <duration>
+        # The duration can be given in any format understood by go's
+        # "ParseDuration": https://golang.org/pkg/time/#ParseDuration
+        - lease_time: 3600s
+
+        # server_id advertises a DHCP Server Identifier, to help resolve
+        # situations where there are multiple DHCP servers on the network
+        # - server_id: <IP address>
+        # The IP address should be one address where this server is reachable
+        - server_id: 10.10.10.1
+
+        # dns advertises DNS resolvers usable by the clients on this network
+        # - dns: <IP address> <...IP addresses>
+        - dns: 8.8.8.8 8.8.4.4
+
+        # router is mandatory, and advertises the address of the default router
+        # for this network
+        # - router: <IP address>
+        - router: 192.168.1.1
+
+        # netmask advertises the network mask for the IPs assigned through this
+        # server
+        # - netmask: <network mask>
+        - netmask: 255.255.255.0
+
+        # range allocates leases within a range of IPs
+        # - range: <lease file> <start IP> <end IP> <lease duration>
+        # * the lease file is an initially empty file where the leases that are
+        # allocated to clients will be stored across server restarts
+        # * lease duration can be given in any format understood by go's
+        # "ParseDuration": https://golang.org/pkg/time/#ParseDuration
+        - range: leases.txt 10.10.10.100 10.10.10.200 60s
