@@ -85,6 +85,13 @@ server6:
         # - nbp: <NBP URL>
         - nbp: "http://[2001:db8:a::1]/nbp"
 
+        # prefix provides prefix delegation.
+        # - prefix: <prefix> <allocation size>
+        # prefix is the prefix pool from which the allocations will be carved
+        # allocation size is the maximum size for prefixes that will be allocated to clients
+        # EG for allocating /64 or smaller prefixes within 2001:db8::/48 :
+        - prefix: 2001:db8::/48 64
+
 # DHCPv4 configuration
 server4:
     # listen is an optional section to specify how the server binds to an
