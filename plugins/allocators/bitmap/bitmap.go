@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/willf/bitset"
 
@@ -31,6 +32,7 @@ type Allocator struct {
 	containing net.IPNet
 	page       int
 	bitmap     *bitset.BitSet
+	l          sync.Mutex
 }
 
 // prefix must verify: containing.Mask.Size < prefix.Mask.Size < page
@@ -59,6 +61,8 @@ func (a *Allocator) Allocate(hint net.IPNet) (ret net.IPNet, err error) {
 	ret.Mask = net.CIDRMask(reqSize, 128)
 
 	// Try to allocate the requested prefix
+	a.l.Lock()
+	defer a.l.Unlock()
 	if hint.IP.To16() != nil && a.containing.Contains(hint.IP) {
 		idx, hintErr := a.toIndex(hint.IP)
 		if hintErr == nil && !a.bitmap.Test(idx) {
@@ -90,6 +94,9 @@ func (a *Allocator) Free(prefix net.IPNet) error {
 	if err != nil {
 		return fmt.Errorf("Could not find prefix in pool: %w", err)
 	}
+
+	a.l.Lock()
+	defer a.l.Unlock()
 
 	if !a.bitmap.Test(idx) {
 		return &allocators.ErrDoubleFree{Loc: prefix}
