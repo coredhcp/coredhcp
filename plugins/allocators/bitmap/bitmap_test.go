@@ -5,16 +5,20 @@
 package bitmap
 
 import (
+	"math"
+	"math/rand"
 	"net"
 	"testing"
+
+	"github.com/willf/bitset"
 )
 
-func getAllocator() *Allocator {
+func getAllocator(bits int) *Allocator {
 	_, prefix, err := net.ParseCIDR("2001:db8::/56")
 	if err != nil {
 		panic(err)
 	}
-	alloc, err := NewBitmapAllocator(*prefix, 64)
+	alloc, err := NewBitmapAllocator(*prefix, 56+bits)
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +26,7 @@ func getAllocator() *Allocator {
 	return alloc
 }
 func TestAlloc(t *testing.T) {
-	alloc := getAllocator()
+	alloc := getAllocator(8)
 
 	net, err := alloc.Allocate(net.IPNet{})
 	if err != nil {
@@ -73,7 +77,7 @@ func TestExhaust(t *testing.T) {
 }
 
 func TestOutOfPool(t *testing.T) {
-	alloc := getAllocator()
+	alloc := getAllocator(8)
 	_, prefix, _ := net.ParseCIDR("fe80:abcd::/48")
 
 	res, err := alloc.Allocate(*prefix)
@@ -86,4 +90,48 @@ func TestOutOfPool(t *testing.T) {
 	if prefLen, totalLen := res.Mask.Size(); prefLen != 64 || totalLen != 128 {
 		t.Fatalf("Prefixes have wrong size %d/%d", prefLen, totalLen)
 	}
+}
+
+func prefixSizeForAllocs(allocs int) int {
+	return int(math.Ceil(math.Log2(float64(allocs))))
+}
+
+// Benchmark parallel Allocate, when the bitmap is mostly empty and we're allocating few values
+// compared to the available allocations
+func BenchmarkParallelAllocInitiallyEmpty(b *testing.B) {
+	// Run with -race to debug concurrency issues
+
+	alloc := getAllocator(prefixSizeForAllocs(b.N) + 2) // Use max 25% of the bitmap (initially empty)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if net, err := alloc.Allocate(net.IPNet{}); err != nil {
+				b.Logf("Could not allocate (got %v and an error): %v", net, err)
+				b.Fail()
+			}
+		}
+	})
+}
+
+func BenchmarkParallelAllocPartiallyFilled(b *testing.B) {
+	// We'll make a bitmap with 2x the number of allocs we want to make.
+	// Then randomly fill it to about 50% utilization
+	alloc := getAllocator(prefixSizeForAllocs(b.N) + 1)
+
+	// Build a replacement bitmap that we'll put in the allocator, with approx. 50% of values filled
+	newbmap := make([]uint64, alloc.bitmap.Len())
+	for i := uint(0); i < alloc.bitmap.Len(); i++ {
+		newbmap[i] = rand.Uint64()
+	}
+	alloc.bitmap = bitset.From(newbmap)
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if net, err := alloc.Allocate(net.IPNet{}); err != nil {
+				b.Logf("Could not allocate (got %v and an error): %v", net, err)
+				b.Fail()
+			}
+		}
+	})
 }
