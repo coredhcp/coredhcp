@@ -28,7 +28,6 @@ var log = logger.GetLogger("plugins/range")
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
 	Name:   "range",
-	Setup6: setup6,
 	Setup4: setup4,
 }
 
@@ -114,12 +113,6 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
 	log.Printf("found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
-}
-
-func setup6(args ...string) (handler.Handler6, error) {
-	// TODO setup function for IPv6
-	log.Warning("not implemented for IPv6")
-	return Handler6, nil
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
