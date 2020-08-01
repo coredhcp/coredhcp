@@ -132,7 +132,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		log.Printf("plugins/server: Unhandled message type: %v", mt)
 		return
 	}
-    var handlerWait sync.WaitGroup
+	var handlerWait sync.WaitGroup
 	resp = tmp
 	for _, handler := range l.handlers {
 		resp, stop = handler(req, resp, &handlerWait)
@@ -183,7 +183,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
 	}
-    handlerWait.Wait()
+	handlerWait.Wait()
 }
 
 // XXX: performance-wise, Pool may or may not be good (see https://github.com/golang/go/issues/23199)

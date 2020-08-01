@@ -7,9 +7,9 @@
 package handler
 
 import (
-    "sync"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"sync"
 )
 
 // Handler6 is a function that is called on a given DHCPv6 packet.
