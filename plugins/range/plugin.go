@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 	"time"
-
+    "sync"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
@@ -24,6 +24,8 @@ import (
 )
 
 var log = logger.GetLogger("plugins/range")
+var recMutex = &sync.Mutex{}
+var fileMutex = &sync.Mutex{}
 
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
@@ -94,26 +96,32 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 }
 
 // Handler4 handles DHCPv4 packets for the range plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func Handler4(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool) {
+    recMutex.Lock()
 	record, ok := Recordsv4[req.ClientHWAddr.String()]
 	if !ok {
 		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
 		rec, err := createIP(ipRangeStart, ipRangeEnd)
 		if err != nil {
 			log.Error(err)
+            recMutex.Unlock()
 			return nil, true
 		}
-		err = saveIPAddress(req.ClientHWAddr, rec)
-		if err != nil {
-			log.Printf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
-		}
+        wg.Add(1)
+        go deferSaveIP(req.ClientHWAddr, rec, wg)
 		Recordsv4[req.ClientHWAddr.String()] = rec
 		record = rec
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(LeaseTime))
 	log.Printf("found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+    recMutex.Unlock()
 	return resp, false
+}
+
+func deferSaveIP(mac net.HardwareAddr, record *Record, wg *sync.WaitGroup) {
+    saveIPAddress(mac, record)
+    wg.Done()
 }
 
 func setup6(args ...string) (handler.Handler6, error) {
@@ -224,18 +232,23 @@ func checkIfTaken(ip net.IP) bool {
 	return taken
 }
 func saveIPAddress(mac net.HardwareAddr, record *Record) error {
+    fileMutex.Lock()
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+        fileMutex.Unlock()
 		return err
 	}
 	defer f.Close()
 	_, err = f.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
 	if err != nil {
+        fileMutex.Unlock()
 		return err
 	}
 	err = f.Sync()
 	if err != nil {
+        fileMutex.Unlock()
 		return err
 	}
+    fileMutex.Unlock()
 	return nil
 }

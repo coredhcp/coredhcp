@@ -7,7 +7,7 @@ package leasetime
 import (
 	"errors"
 	"time"
-
+    "sync"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
@@ -28,7 +28,7 @@ var (
 )
 
 // Handler4 handles DHCPv4 packets for the lease_time plugin.
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func Handler4(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool) {
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		return resp, false
 	}

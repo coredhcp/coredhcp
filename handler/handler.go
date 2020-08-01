@@ -5,6 +5,7 @@
 package handler
 
 import (
+    "sync"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
@@ -20,4 +21,4 @@ import (
 type Handler6 func(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool)
 
 // Handler4 behaves like Handler6, but for DHCPv4 packets.
-type Handler4 func(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool)
+type Handler4 func(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool)

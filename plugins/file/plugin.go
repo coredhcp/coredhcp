@@ -32,7 +32,7 @@ import (
 	"net"
 	"strings"
 	"time"
-
+    "sync"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
@@ -150,7 +150,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Debugf("File found IP address %s for MAC %s", ipaddr, mac.String())
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
@@ -166,7 +166,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 }
 
 // Handler4 handles DHCPv4 packets for the file plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func Handler4(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool) {
 	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
