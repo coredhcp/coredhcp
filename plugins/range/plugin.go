@@ -151,7 +151,7 @@ func setupRange(v6 bool, args ...string) (handler.Handler6, handler.Handler4, er
 	if err != nil {
 		return Handler6, Handler4, fmt.Errorf("invalid duration: %v", args[3])
 	}
-	r, err := os.Open(filename)
+	r, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0640)
 	defer func() {
 		if err := r.Close(); err != nil {
 			log.Warningf("Failed to close file %s: %v", filename, err)
