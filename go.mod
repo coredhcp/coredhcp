@@ -15,6 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/viper v1.7.0
+	github.com/stretchr/testify v1.3.0
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
 	github.com/willf/bitset v1.1.10
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
