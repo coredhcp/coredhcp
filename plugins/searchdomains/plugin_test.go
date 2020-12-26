@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Search domains we will expect the DHCP server to assign
-var searchDomains = []string{"domain.a", "domain.b"}
-
 func TestAddDomains6(t *testing.T) {
 	assert := assert.New(t)
+
+	// Search domains we will expect the DHCP server to assign
+	searchDomains := []string{"domain.a", "domain.b"}
 
 	// Init plugin
 	handler6, err := Plugin.Setup6(searchDomains...)
@@ -56,6 +56,12 @@ func TestAddDomains6(t *testing.T) {
 
 func TestAddDomains4(t *testing.T) {
 	assert := assert.New(t)
+
+	// Search domains we will expect the DHCP server to assign
+	// NOTE: these domains should be different from the v6 test domains;
+	// this tests that we haven't accidentally set the v6 domains in the
+	// v4 plugin handler or vice versa.
+	searchDomains := []string{"domain.b", "domain.c"}
 
 	// Init plugin
 	handler4, err := Plugin.Setup4(searchDomains...)
