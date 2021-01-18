@@ -88,7 +88,12 @@ type Handler struct {
 	allocator allocators.Allocator
 }
 
+// samePrefix returns true if both prefixes are defined and equal
+// The empty prefix is equal to nothing, not even itself
 func samePrefix(a, b *net.IPNet) bool {
+	if a == nil || b == nil {
+		return false
+	}
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
 
@@ -129,7 +134,7 @@ func (h *Handler) Handle(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 			// If there are no IAPrefix hints, this is still a valid IA_PD request (just
 			// unspecified) and we must attempt to allocate a prefix; so we include an empty hint
 			// which is equivalent to no hint
-			hints = []*dhcpv6.OptIAPrefix{{}}
+			hints = []*dhcpv6.OptIAPrefix{{Prefix: &net.IPNet{}}}
 		}
 
 		// Bitmap to track which requests are already satisfied or not
@@ -224,6 +229,7 @@ func (h *Handler) Handle(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 			addPrefix(iapdResp, l)
 			newLeases = append(knownLeases, l)
+			log.Debugf("Allocated %s to %s (IAID: %x)", &allocated, client, iapd.IaId)
 		}
 
 		if newLeases != nil {
@@ -255,8 +261,11 @@ func addPrefix(resp *dhcpv6.OptIAPD, l lease) {
 }
 
 func dup(src *net.IPNet) (dst *net.IPNet) {
-	dst = new(net.IPNet)
+	dst = &net.IPNet{
+		IP:   make(net.IP, net.IPv6len),
+		Mask: make(net.IPMask, net.IPv6len),
+	}
 	copy(dst.IP, src.IP)
 	copy(dst.Mask, src.Mask)
-	return
+	return dst
 }
