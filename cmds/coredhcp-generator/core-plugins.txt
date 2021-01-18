@@ -7,3 +7,4 @@ github.com/coredhcp/coredhcp/plugins/prefix
 github.com/coredhcp/coredhcp/plugins/range
 github.com/coredhcp/coredhcp/plugins/router
 github.com/coredhcp/coredhcp/plugins/serverid
+github.com/coredhcp/coredhcp/plugins/searchdomains
