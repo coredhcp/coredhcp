@@ -80,3 +80,14 @@ func TestRoundTrip(t *testing.T) {
 			iapd.Options.Prefixes())
 	}
 }
+
+func TestDup(t *testing.T) {
+	_, prefix, err := net.ParseCIDR("2001:db8::/48")
+	if err != nil {
+		panic("bad cidr")
+	}
+	dupPrefix := dup(prefix)
+	if !samePrefix(dupPrefix, prefix) {
+		t.Fatalf("dup doesn't work: got %v expected %v", dupPrefix, prefix)
+	}
+}
