@@ -6,7 +6,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -15,6 +14,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 )
 
 const (
@@ -23,9 +24,9 @@ const (
 )
 
 var (
-	flagTemplate = flag.String("template", defaultTemplateFile, "Template file name")
-	flagOutfile  = flag.String("outfile", "", "Output file path")
-	flagFromFile = flag.String("from", "", "Optional file name to get the plugin list from, one import path per line")
+	flagTemplate = flag.StringP("template", "t", defaultTemplateFile, "Template file name")
+	flagOutfile  = flag.StringP("outfile", "o", "", "Output file path")
+	flagFromFile = flag.StringP("from", "f", "", "Optional file name to get the plugin list from, one import path per line")
 )
 
 var funcMap = template.FuncMap{
@@ -114,6 +115,7 @@ func main() {
 		}
 		outfile = path.Join(tmpdir, "coredhcp.go")
 	}
+
 	log.Printf("Generating output file '%s' with %d plugin(s):", outfile, len(plugins))
 	idx := 1
 	for pl := range plugins {
@@ -139,5 +141,5 @@ func main() {
 		log.Fatalf("Template execution failed: %v", err)
 	}
 	log.Printf("Generated file '%s'. You can build it by running 'go build' in the output directory.", outfile)
-	fmt.Print(path.Dir(outfile))
+	fmt.Println(path.Dir(outfile))
 }
