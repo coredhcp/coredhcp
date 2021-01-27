@@ -3,12 +3,10 @@
 // LICENSE file in the root directory of this source tree.
 
 // This is a generated file, edits should be made in the corresponding source file
-// And this file regenerated using `coredhcp-generator -from core-plugins.txt`
-
+// And this file regenerated using `coredhcp-generator --from core-plugins.txt`
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,14 +29,15 @@ import (
 	pl_serverid "github.com/coredhcp/coredhcp/plugins/serverid"
 
 	"github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
 )
 
 var (
-	flagLogFile     = flag.String("logfile", "", "Name of the log file to append to. Default: stdout/stderr only")
-	flagLogNoStdout = flag.Bool("nostdout", false, "Disable logging to stdout/stderr")
-	flagLogLevel    = flag.String("loglevel", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
-	flagConfig      = flag.String("conf", "", "Use this configuration file instead of the default location")
-	flagPlugins     = flag.Bool("plugins", false, "list plugins")
+	flagLogFile     = flag.StringP("logfile", "l", "", "Name of the log file to append to. Default: stdout/stderr only")
+	flagLogNoStdout = flag.BoolP("nostdout", "N", false, "Disable logging to stdout/stderr")
+	flagLogLevel    = flag.StringP("loglevel", "L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
+	flagConfig      = flag.StringP("conf", "c", "", "Use this configuration file instead of the default location")
+	flagPlugins     = flag.BoolP("plugins", "P", false, "list plugins")
 )
 
 var logLevels = map[string]func(*logrus.Logger){
