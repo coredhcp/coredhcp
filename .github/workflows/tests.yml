@@ -1,0 +1,74 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - run: |
+          # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
+          # trick.
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "GO111MODULE=on" >> $GITHUB_ENV
+      - name: run unit tests
+        run: |
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
+          go get -v -t ./...
+          echo "" > coverage.txt
+          for d in $(go list ./...); do
+              go test -v -race -coverprofile=profile.out -covermode=atomic "${d}"
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+          done
+      - name: report to codecov
+        run: bash <(curl -s https://codecov.io/bash) -c -f coverage.txt -F unittest
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - run: |
+          # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
+          # trick.
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "GO111MODULE=on" >> $GITHUB_ENV
+      - name: run integ tests
+        run: |
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
+          go get -v -t ./...
+          echo "" > coverage.txt
+          for d in $(go list ./...); do
+              go test -c -tags=integration -v -race -coverprofile=profile.out -covermode=atomic "${d}"
+              testbin="./$(basename $d).test"
+              # only run it if it was built - i.e. if there are integ tests
+              test -x "${testbin}" && sudo "./${testbin}"
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+          done
+      - name: report to codecov
+        run: bash <(curl -s https://codecov.io/bash) -c -f coverage.txt -F integtest
