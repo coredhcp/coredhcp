@@ -1,0 +1,63 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  coredhcp:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - name: setup environment
+        run: |
+          # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
+          # trick.
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "GO111MODULE=on" >> $GITHUB_ENV
+      - name: build coredhcp
+        run: |
+          set -exu
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}/cmds/coredhcp
+          go build
+  coredhcp-generator:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - name: setup environment
+        run: |
+          # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
+          # trick.
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "GOBIN=$GITHUB_WORKSPACE/bin" >> $GITHUB_ENV
+          echo "GO111MODULE=off" >> $GITHUB_ENV # until we solve this for coredhcp-generator
+      - name: build coredhcp-generator
+        run: |
+          set -exu
+          cd "${GITHUB_WORKSPACE}"/src/github.com/${{ github.repository }}/cmds/coredhcp-generator
+          GO111MODULE=on go build
+          builddir=$(./coredhcp-generator -f core-plugins.txt)
+          cd "${builddir}"
+          ls -l
+          go get -v ./...
+          go build
+          gofmt -w "${builddir}/coredhcp.go"
+          diff -u "${builddir}/coredhcp.go" "${GITHUB_WORKSPACE}"/src/github.com/${{ github.repository }}/cmds/coredhcp/main.go
