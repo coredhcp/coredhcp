@@ -2,13 +2,15 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// Copyright (c) 2020, Juniper Networks, Inc. All rights reserved
+
 package netmask
 
 import (
 	"encoding/binary"
 	"errors"
 	"net"
-
+    "sync"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
@@ -49,7 +51,7 @@ func setup4(args ...string) (handler.Handler4, error) {
 }
 
 //Handler4 handles DHCPv4 packets for the netmask plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func Handler4(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptSubnetMask(netmask))
 	return resp, false
 }

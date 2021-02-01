@@ -2,6 +2,8 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// Copyright (c) 2020, Juniper Networks, Inc. All rights reserved
+
 // Package nbp implements handling of an NBP (Network Boot Program) using an
 // URL, e.g. http://[fe80::abcd:efff:fe12:3456]/my-nbp or tftp://10.0.0.1/my-nbp .
 // The NBP information is only added if it is requested by the client.
@@ -31,7 +33,7 @@ package nbp
 import (
 	"fmt"
 	"net/url"
-
+    "sync"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
@@ -116,7 +118,7 @@ func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	return resp, true
 }
 
-func nbpHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func nbpHandler4(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool) {
 	if opt66 == nil || opt67 == nil {
 		// nothing to do
 		return resp, true

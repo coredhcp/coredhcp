@@ -2,11 +2,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// Copyright (c) 2020, Juniper Networks, Inc. All rights reserved.
+
 package handler
 
 import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"sync"
 )
 
 // Handler6 is a function that is called on a given DHCPv6 packet.
@@ -20,4 +23,4 @@ import (
 type Handler6 func(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool)
 
 // Handler4 behaves like Handler6, but for DHCPv4 packets.
-type Handler4 func(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool)
+type Handler4 func(req, resp *dhcpv4.DHCPv4, wg *sync.WaitGroup) (*dhcpv4.DHCPv4, bool)

@@ -2,6 +2,8 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// Copyright (c) 2020, Juniper Networks, Inc. All rights reserved
+
 package server
 
 import (
@@ -130,10 +132,10 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		log.Printf("plugins/server: Unhandled message type: %v", mt)
 		return
 	}
-
+	var handlerWait sync.WaitGroup
 	resp = tmp
 	for _, handler := range l.handlers {
-		resp, stop = handler(req, resp)
+		resp, stop = handler(req, resp, &handlerWait)
 		if stop {
 			break
 		}
@@ -178,10 +180,10 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
 			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 		}
-
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
 	}
+	handlerWait.Wait()
 }
 
 // XXX: performance-wise, Pool may or may not be good (see https://github.com/golang/go/issues/23199)
