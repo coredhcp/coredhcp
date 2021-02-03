@@ -8,6 +8,7 @@
 package allocators
 
 import (
+	"errors"
 	"fmt"
 	"net"
 )
@@ -42,3 +43,6 @@ type ErrDoubleFree struct {
 func (err *ErrDoubleFree) Error() string {
 	return fmt.Sprint("Attempted to free unallocated block at ", err.Loc.String())
 }
+
+// ErrNoAddrAvail is returned when we can't allocate an IP because there's no unallocated space left
+var ErrNoAddrAvail = errors.New("no address available to allocate")

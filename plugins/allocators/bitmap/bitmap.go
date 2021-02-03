@@ -75,7 +75,7 @@ func (a *Allocator) Allocate(hint net.IPNet) (ret net.IPNet, err error) {
 	// Find a free prefix
 	next, ok := a.bitmap.NextClear(0)
 	if !ok {
-		err = errors.New("No prefix available")
+		err = allocators.ErrNoAddrAvail
 		return
 	}
 	a.bitmap.Set(next)
