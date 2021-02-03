@@ -1,0 +1,4 @@
+# Map file paths during tests to the canonical path in the repo
+fixes:
+    # Removes the prefix we use during github actions
+    - "src/github.com/coredhcp/coredhcp/::"
