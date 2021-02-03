@@ -19,13 +19,8 @@ import (
 )
 
 var (
-	// ErrNoAddrAvail is returned when we can't allocate an IP
-	// because there's no unallocated space left
-	ErrNoAddrAvail = errors.New("No address available to allocate")
-
-	errNotInRange = errors.New("IP outside of allowed range")
-
-	errInvalidIP = errors.New("Invalid IP passed as input")
+	errNotInRange = errors.New("IPv4 address outside of allowed range")
+	errInvalidIP  = errors.New("invalid IPv4 address passed as input")
 )
 
 // IPv4Allocator allocates IPv4 addresses, tracking utilization with a bitmap
@@ -33,16 +28,18 @@ type IPv4Allocator struct {
 	start uint32
 	end   uint32
 
+	// This bitset implementation isn't goroutine-safe, we protect it with a mutex for now
+	// until we can swap for another concurrent implementation
 	bitmap *bitset.BitSet
 	l      sync.Mutex
 }
 
 func (a *IPv4Allocator) toIP(offset uint32) net.IP {
 	if offset > a.end-a.start {
-		return nil
+		panic("BUG: offset out of bounds")
 	}
 
-	r := make(net.IP, 4)
+	r := make(net.IP, net.IPv4len)
 	binary.BigEndian.PutUint32(r, a.start+offset)
 	return r
 }
@@ -78,7 +75,7 @@ func (a *IPv4Allocator) Allocate(hint net.IPNet) (n net.IPNet, err error) {
 		// Then any available address
 		avail, ok := a.bitmap.NextClear(0)
 		if !ok {
-			return n, ErrNoAddrAvail
+			return n, allocators.ErrNoAddrAvail
 		}
 		next = avail
 	}
@@ -108,7 +105,7 @@ func (a *IPv4Allocator) Free(n net.IPNet) error {
 // NewIPv4Allocator creates a new allocator suitable for giving out IPv4 addresses
 func NewIPv4Allocator(start, end net.IP) (*IPv4Allocator, error) {
 	if start.To4() == nil || end.To4() == nil {
-		return nil, fmt.Errorf("Invalid IPv4s given to create the allocator: [%s,%s]", start, end)
+		return nil, fmt.Errorf("invalid IPv4 addresses given to create the allocator: [%s,%s]", start, end)
 	}
 
 	alloc := IPv4Allocator{
@@ -117,7 +114,7 @@ func NewIPv4Allocator(start, end net.IP) (*IPv4Allocator, error) {
 	}
 
 	if alloc.start > alloc.end {
-		return nil, errors.New("No IPs in the given range to allocate")
+		return nil, errors.New("no IPs in the given range to allocate")
 	}
 	alloc.bitmap = bitset.New(uint(alloc.end - alloc.start + 1))
 
