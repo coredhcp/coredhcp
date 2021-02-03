@@ -65,7 +65,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		}
 		err = p.saveIPAddress(req.ClientHWAddr, &rec)
 		if err != nil {
-			log.Printf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
+			log.Errorf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
 		}
 		p.Recordsv4[req.ClientHWAddr.String()] = &rec
 		record = &rec
@@ -73,6 +73,10 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		if record.expires.Before(time.Now().Add(p.LeaseTime)) {
 			record.expires = time.Now().Add(p.LeaseTime).Round(time.Second)
+			err := p.saveIPAddress(req.ClientHWAddr, record)
+			if err != nil {
+				log.Errorf("Could not persist lease for MAC %s: %v", req.ClientHWAddr.String(), err)
+			}
 		}
 	}
 	resp.YourIPAddr = record.IP
