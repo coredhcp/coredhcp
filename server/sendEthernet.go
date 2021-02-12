@@ -12,6 +12,10 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
+//this function sends an unicast to the hardware address defined in resp.ClientHWAddr,
+//the layer3 destination address is still the broadcast address;
+//iface: the interface where the DHCP message should be sent;
+//resp: DHCPv4 struct, which should be sent;
 func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 
 	eth := layers.Ethernet{
