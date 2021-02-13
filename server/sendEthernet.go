@@ -2,7 +2,6 @@ package server
 
 //function from https://gist.github.com/corny/5e4e3f8e6f2395726e46c3db9db17f12#file-dhcp_discover-go
 import (
-	"encoding/binary"
 	"net"
 	"time"
 
@@ -35,59 +34,35 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 		DstPort: dhcpv4.ClientPort,
 	}
 
-	//put all data from request in the layer struct
-	dhcp := layers.DHCPv4{
-		Operation:    layers.DHCPOp(resp.OpCode),
-		HardwareType: layers.LinkType(resp.HWType),
-		HardwareOpts: resp.HopCount,
-		Xid:          binary.BigEndian.Uint32(resp.TransactionID[:]),
-		Secs:         resp.NumSeconds,
-		Flags:        resp.Flags,
-		ClientIP:     resp.ClientIPAddr,
-		YourClientIP: resp.YourIPAddr,
-		NextServerIP: resp.ServerIPAddr,
-		RelayAgentIP: resp.GatewayIPAddr,
-		ClientHWAddr: resp.ClientHWAddr,
-		ServerName:   []byte(resp.ServerHostName),
-	}
-
-	appendOption := func(optType layers.DHCPOpt, data []byte) {
-		dhcp.Options = append(dhcp.Options, layers.DHCPOption{
-			Type:   optType,
-			Data:   data,
-			Length: uint8(len(data)),
-		})
-		return
-	}
-
-	//Add all option to the layer struct
-	for key, element := range resp.Options {
-		appendOption(layers.DHCPOpt(key), []byte(element))
-	}
-
 	udp.SetNetworkLayerForChecksum(&ip)
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, &dhcp)
+
+	// Decode a packet
+	packet := gopacket.NewPacket(resp.ToBytes(), layers.LayerTypeDHCPv4, gopacket.NoCopy)
+	dhcpLayer := packet.Layer(layers.LayerTypeDHCPv4)
+	dhcp, ok := dhcpLayer.(gopacket.SerializableLayer)
+	if !ok {
+		log.Errorf("Send Ethernet: Layer %s is not serializable", dhcpLayer.LayerType().String())
+	}
+	err := gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, dhcp)
 	if err != nil {
-		log.Errorf("Can not serialize layer for AKN: %v, err")
+		log.Errorf("Send Ethernet: Can't serialize layer: %v", err)
 	}
 	data := buf.Bytes()
 
-	log.Debugf("sending %d bytes for AKN", len(data))
-
 	handle, err := pcap.OpenLive(iface.Name, 1024, false, time.Second)
 	if err != nil {
-		log.Errorf("Open handle for AKN: %v", err.Error())
+		log.Errorf("Send Ethernet: Can't open handle: %v", err.Error())
 	}
 	defer handle.Close()
 
 	//send
 	if err := handle.WritePacketData(data); err != nil {
-		log.Errorf("Send AKN: %v", err.Error())
+		log.Errorf("Send Ethernet: Can't send Unicast: %v", err.Error())
 	}
 
 }

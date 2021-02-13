@@ -139,6 +139,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		}
 	}
 
+	useEthernet := false
 	if resp != nil {
 		var peer *net.UDPAddr
 		if !req.GatewayIPAddr.IsUnspecified() {
@@ -152,9 +153,8 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		} else {
 			//sends a layer2 frame so that we can define the destination MAC address
-			sendEthernet(l.Interface, resp)
-			return
-
+			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+			useEthernet = true
 		}
 
 		var woob *ipv4.ControlMessage
@@ -171,8 +171,17 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 				log.Errorf("HandleMsg4: Did not receive interface information")
 			}
 		}
-		if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
-			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
+
+		if useEthernet == true {
+			intf, err := net.InterfaceByIndex(woob.IfIndex)
+			if err != nil {
+				log.Printf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
+			}
+			sendEthernet(*intf, resp)
+		} else {
+			if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
+				log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
+			}
 		}
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
