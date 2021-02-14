@@ -172,7 +172,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			}
 		}
 
-		if useEthernet == true {
+		if useEthernet {
 			intf, err := net.InterfaceByIndex(woob.IfIndex)
 			if err != nil {
 				log.Printf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)

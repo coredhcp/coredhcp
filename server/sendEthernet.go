@@ -37,7 +37,11 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 		DstPort: dhcpv4.ClientPort,
 	}
 
-	udp.SetNetworkLayerForChecksum(&ip)
+	err := udp.SetNetworkLayerForChecksum(&ip)
+	if err != nil {
+		log.Errorf("Send Ethernet: Couldn't set network layer: %v", err)
+	}
+
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		ComputeChecksums: true,
@@ -51,7 +55,7 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 	if !ok {
 		log.Errorf("Send Ethernet: Layer %s is not serializable", dhcpLayer.LayerType().String())
 	}
-	err := gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, dhcp)
+	err = gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, dhcp)
 	if err != nil {
 		log.Errorf("Send Ethernet: Can't serialize layer: %v", err)
 	}
