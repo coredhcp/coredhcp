@@ -1,6 +1,9 @@
+// Copyright 2018-present the CoreDHCP Authors. All rights reserved
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
 package server
 
-//function from https://gist.github.com/corny/5e4e3f8e6f2395726e46c3db9db17f12#file-dhcp_discover-go
 import (
 	"net"
 	"time"
