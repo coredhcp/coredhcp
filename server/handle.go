@@ -151,14 +151,27 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		} else if req.IsBroadcast() {
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		} else {
-			// FIXME: we're supposed to unicast to a specific *L2* address, and an L3
-			// address that's not yet assigned.
-			// I don't know how to do that with this API...
-			//peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
-			log.Warn("Cannot handle non-broadcast-capable unspecified peers in an RFC-compliant way. " +
-				"Response will be broadcast")
+			// we must inject ARP table entry to unicast to IP/MAC that's not known yet
+			device := l.Interface.Name
+			if device == "" && oob != nil && oob.IfIndex != 0 {
+				if netif, err := net.InterfaceByIndex(oob.IfIndex); err == nil {
+					device = netif.Name
+				}
+			}
 
-			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+			if device != "" {
+				err = InjectArp(resp.YourIPAddr, req.ClientHWAddr, ATF_COM, device)
+				if err != nil {
+					log.Warn("ioctl failed, reverting to broadcast response")
+				}
+			}
+
+			if device != "" && err == nil {
+				peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
+			} else {
+				// fall back to broadcast
+				peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+			}
 		}
 
 		var woob *ipv4.ControlMessage
