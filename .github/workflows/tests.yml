@@ -23,9 +23,6 @@ jobs:
           # trick.
           echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "GO111MODULE=on" >> $GITHUB_ENV
-      - name: install library
-        run: |
-          sudo apt-get install libpcap-dev
       - name: run unit tests
         run: |
           cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
@@ -65,9 +62,6 @@ jobs:
           # trick.
           echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "GO111MODULE=on" >> $GITHUB_ENV
-      - name: install library
-        run: |
-          sudo apt-get install libpcap-dev
       - name: setup integ tests
         run: |
           cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}

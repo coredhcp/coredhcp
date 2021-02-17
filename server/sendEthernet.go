@@ -5,12 +5,12 @@
 package server
 
 import (
+	"fmt"
 	"net"
-	"time"
+	"syscall"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
@@ -18,7 +18,7 @@ import (
 //the layer3 destination address is still the broadcast address;
 //iface: the interface where the DHCP message should be sent;
 //resp: DHCPv4 struct, which should be sent;
-func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
+func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) error {
 
 	eth := layers.Ethernet{
 		EthernetType: layers.EthernetTypeIPv4,
@@ -31,6 +31,7 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 		SrcIP:    resp.ServerIPAddr,
 		DstIP:    net.IPv4bcast,
 		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
 	}
 	udp := layers.UDP{
 		SrcPort: dhcpv4.ServerPort,
@@ -39,7 +40,7 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 
 	err := udp.SetNetworkLayerForChecksum(&ip)
 	if err != nil {
-		log.Errorf("Send Ethernet: Couldn't set network layer: %v", err)
+		return fmt.Errorf("Send Ethernet: Couldn't set network layer: %v", err)
 	}
 
 	buf := gopacket.NewSerializeBuffer()
@@ -53,23 +54,41 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) {
 	dhcpLayer := packet.Layer(layers.LayerTypeDHCPv4)
 	dhcp, ok := dhcpLayer.(gopacket.SerializableLayer)
 	if !ok {
-		log.Errorf("Send Ethernet: Layer %s is not serializable", dhcpLayer.LayerType().String())
+		return fmt.Errorf("Layer %s is not serializable", dhcpLayer.LayerType().String())
 	}
 	err = gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, dhcp)
 	if err != nil {
-		log.Errorf("Send Ethernet: Can't serialize layer: %v", err)
+		return fmt.Errorf("Cannot serialize layer: %v", err)
 	}
 	data := buf.Bytes()
 
-	handle, err := pcap.OpenLive(iface.Name, 1024, false, time.Second)
+	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, 0)
 	if err != nil {
-		log.Errorf("Send Ethernet: Can't open handle: %v", err.Error())
+		return fmt.Errorf("Send Ethernet: Cannot open socket: %v", err)
 	}
-	defer handle.Close()
+	defer func() {
+		err = syscall.Close(fd)
+		if err != nil {
+			log.Errorf("Send Ethernet: Cannot close socket: %v", err)
+		}
+	}()
 
-	//send
-	if err := handle.WritePacketData(data); err != nil {
-		log.Errorf("Send Ethernet: Can't send Unicast: %v", err.Error())
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		log.Errorf("Send Ethernet: Cannot set option for socket: %v", err)
 	}
 
+	var hwAddr [8]byte
+	copy(hwAddr[0:6], resp.ClientHWAddr[0:6])
+	ethAddr := syscall.SockaddrLinklayer{
+		Protocol: 0,
+		Ifindex:  iface.Index,
+		Halen:    6,
+		Addr:     hwAddr, //not used
+	}
+	err = syscall.Sendto(fd, data, 0, &ethAddr)
+	if err != nil {
+		return fmt.Errorf("Cannot send frame via socket: %v", err)
+	}
+	return nil
 }

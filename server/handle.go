@@ -175,12 +175,15 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		if useEthernet {
 			intf, err := net.InterfaceByIndex(woob.IfIndex)
 			if err != nil {
-				log.Printf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
+				log.Errorf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
 			}
-			sendEthernet(*intf, resp)
+			err = sendEthernet(*intf, resp)
+			if err != nil {
+				log.Errorf("MainHandler4: Cannot send Ethernet packet: %v", err)
+			}
 		} else {
 			if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
-				log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
+				log.Errorf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 			}
 		}
 	} else {
