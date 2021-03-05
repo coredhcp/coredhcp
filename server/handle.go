@@ -139,8 +139,8 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		}
 	}
 
-	useEthernet := false
 	if resp != nil {
+		useEthernet := false
 		var peer *net.UDPAddr
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
@@ -153,13 +153,13 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		} else {
 			//sends a layer2 frame so that we can define the destination MAC address
-			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+			peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
 			useEthernet = true
 		}
 
 		var woob *ipv4.ControlMessage
-		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() {
-			// Direct broadcasts and link-local to the interface the request was
+		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() || useEthernet {
+			// Direct broadcasts, link-local and layer2 unicasts to the interface the request was
 			// received on. Other packets should use the normal routing table in
 			// case of asymetric routing
 			switch {
@@ -176,6 +176,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			intf, err := net.InterfaceByIndex(woob.IfIndex)
 			if err != nil {
 				log.Errorf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
+				return
 			}
 			err = sendEthernet(*intf, resp)
 			if err != nil {

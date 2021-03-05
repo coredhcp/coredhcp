@@ -2,6 +2,8 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+// +build linux
+
 package server
 
 import (
@@ -29,7 +31,7 @@ func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) error {
 		Version:  4,
 		TTL:      64,
 		SrcIP:    resp.ServerIPAddr,
-		DstIP:    net.IPv4bcast,
+		DstIP:    resp.YourIPAddr,
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
