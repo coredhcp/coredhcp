@@ -48,16 +48,15 @@ jobs:
           # trick.
           echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           echo "GOBIN=$GITHUB_WORKSPACE/bin" >> $GITHUB_ENV
-          echo "GO111MODULE=off" >> $GITHUB_ENV # until we solve this for coredhcp-generator
       - name: build coredhcp-generator
         run: |
           set -exu
           cd "${GITHUB_WORKSPACE}"/src/github.com/${{ github.repository }}/cmds/coredhcp-generator
-          GO111MODULE=on go build
+          go build
           builddir=$(./coredhcp-generator -f core-plugins.txt)
           cd "${builddir}"
           ls -l
-          go get -v ./...
+          go mod init "coredhcp"
           go build
           gofmt -w "${builddir}/coredhcp.go"
           diff -u "${builddir}/coredhcp.go" "${GITHUB_WORKSPACE}"/src/github.com/${{ github.repository }}/cmds/coredhcp/main.go
