@@ -69,7 +69,7 @@ func (a *IPv4Allocator) Allocate(hint net.IPNet) (n net.IPNet, err error) {
 
 	var next uint
 	// First try the exact match
-	if a.bitmap.Test(hintOffset) {
+	if !a.bitmap.Test(hintOffset) {
 		next = hintOffset
 	} else {
 		// Then any available address
