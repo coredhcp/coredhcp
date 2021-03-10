@@ -20,17 +20,26 @@ func getv4Allocator() *IPv4Allocator {
 func Test4Alloc(t *testing.T) {
 	alloc := getv4Allocator()
 
-	net, err := alloc.Allocate(net.IPNet{})
+	net1, err := alloc.Allocate(net.IPNet{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = alloc.Free(net)
+	net2, err := alloc.Allocate(net.IPNet{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = alloc.Free(net)
+	if net1.IP.Equal(net2.IP) {
+		t.Fatal("That address was already allocated")
+	}
+
+	err = alloc.Free(net1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = alloc.Free(net1)
 	if err == nil {
 		t.Fatal("Expected DoubleFree error")
 	}
