@@ -57,6 +57,7 @@ jobs:
           cd "${builddir}"
           ls -l
           go mod init "coredhcp"
+          go mod edit -replace "github.com/coredhcp/coredhcp=${GITHUB_WORKSPACE}/src/github.com/${{ github.repository }}"
           go build
           gofmt -w "${builddir}/coredhcp.go"
           diff -u "${builddir}/coredhcp.go" "${GITHUB_WORKSPACE}"/src/github.com/${{ github.repository }}/cmds/coredhcp/main.go
