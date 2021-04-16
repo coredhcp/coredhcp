@@ -108,7 +108,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 	req, err := dhcpv4.FromBytes(buf)
 	bufpool.Put(&buf)
 	if err != nil {
-		log.Printf("Error parsing DHCPv6 request: %v", err)
+		log.Printf("Error parsing DHCPv4 request: %v", err)
 		return
 	}
 
@@ -140,6 +140,7 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 	}
 
 	if resp != nil {
+		useEthernet := false
 		var peer *net.UDPAddr
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
@@ -151,19 +152,14 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 		} else if req.IsBroadcast() {
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		} else {
-			// FIXME: we're supposed to unicast to a specific *L2* address, and an L3
-			// address that's not yet assigned.
-			// I don't know how to do that with this API...
-			//peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
-			log.Warn("Cannot handle non-broadcast-capable unspecified peers in an RFC-compliant way. " +
-				"Response will be broadcast")
-
-			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
+			//sends a layer2 frame so that we can define the destination MAC address
+			peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
+			useEthernet = true
 		}
 
 		var woob *ipv4.ControlMessage
-		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() {
-			// Direct broadcasts and link-local to the interface the request was
+		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() || useEthernet {
+			// Direct broadcasts, link-local and layer2 unicasts to the interface the request was
 			// received on. Other packets should use the normal routing table in
 			// case of asymetric routing
 			switch {
@@ -175,10 +171,22 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 				log.Errorf("HandleMsg4: Did not receive interface information")
 			}
 		}
-		if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
-			log.Printf("MainHandler4: conn.Write to %v failed: %v", peer, err)
-		}
 
+		if useEthernet {
+			intf, err := net.InterfaceByIndex(woob.IfIndex)
+			if err != nil {
+				log.Errorf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
+				return
+			}
+			err = sendEthernet(*intf, resp)
+			if err != nil {
+				log.Errorf("MainHandler4: Cannot send Ethernet packet: %v", err)
+			}
+		} else {
+			if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
+				log.Errorf("MainHandler4: conn.Write to %v failed: %v", peer, err)
+			}
+		}
 	} else {
 		log.Print("MainHandler4: dropping request because response is nil")
 	}
