@@ -9,6 +9,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -41,12 +42,53 @@ func (l *listener4) tryOpenRawSock() error {
 	return nil
 }
 
+func selectSourceAddressForL2(ifi net.Interface, dst net.IP) (net.IP, error) {
+	candidates, err := ifi.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	var acceptableMatch net.IP
+	for _, addr := range candidates {
+		if ipaddr, ok := addr.(*net.IPNet); !ok {
+			continue
+		} else {
+			if ipaddr.IP.To4() == nil {
+				continue
+			}
+
+			if ipaddr.Contains(dst) {
+				// Best case: we have an address in a directly-attached subnet where the destination is
+				return ipaddr.IP, nil
+			} else if ipaddr.IP.IsLinkLocalUnicast() {
+				// Alternatively a link-local unicast would be reachable by the client so is OK
+				acceptableMatch = ipaddr.IP
+			} else if ipaddr.IP.IsGlobalUnicast() && acceptableMatch == nil {
+				// A unicast address in the wrong subnet is probably a bad idea but better than no address
+				acceptableMatch = ipaddr.IP
+			}
+		}
+	}
+	if acceptableMatch == nil {
+		return nil, fmt.Errorf("no acceptable source IP on interface %s", ifi.Name)
+	}
+	return acceptableMatch, nil
+}
+
 // sendEthernet unicasts a dhcp message to a client that isn't configured yet, using its L2 address
 func (l *listener4) sendEthernet(resp *dhcpv4.DHCPv4) error {
+	if l.rawsock == nil {
+		return errors.New("no raw socket to use for sending")
+	}
+
+	srcAddr, err := selectSourceAddressForL2(l.iface, resp.YourIPAddr)
+	if err != nil {
+		return fmt.Errorf("couldn't choose address for L2 unicast: %w", err)
+	}
+
 	ip := layers.IPv4{
 		Version:  4,
 		TTL:      64,
-		SrcIP:    resp.ServerIPAddr,
+		SrcIP:    srcAddr,
 		DstIP:    resp.YourIPAddr,
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
@@ -56,7 +98,7 @@ func (l *listener4) sendEthernet(resp *dhcpv4.DHCPv4) error {
 		DstPort: dhcpv4.ClientPort,
 	}
 
-	err := udp.SetNetworkLayerForChecksum(&ip)
+	err = udp.SetNetworkLayerForChecksum(&ip)
 	if err != nil {
 		return fmt.Errorf("Send Ethernet: Couldn't set network layer: %v", err)
 	}
