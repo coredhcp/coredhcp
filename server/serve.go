@@ -19,19 +19,21 @@ import (
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 	"github.com/insomniacslk/dhcp/dhcpv6/server6"
+	"github.com/mdlayher/packet"
 )
 
 var log = logger.GetLogger("server")
 
 type listener6 struct {
 	*ipv6.PacketConn
-	net.Interface
+	iface    net.Interface
 	handlers []handler.Handler6
 }
 
 type listener4 struct {
 	*ipv4.PacketConn
-	net.Interface
+	rawsock  *packet.Conn
+	iface    net.Interface
 	handlers []handler.Handler4
 }
 
@@ -59,7 +61,7 @@ func listen4(a *net.UDPAddr) (*listener4, error) {
 		if err != nil {
 			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
 		}
-		l4.Interface = *ifi
+		l4.iface = *ifi
 	} else {
 
 		// When not bound to an interface, we need the information in each
@@ -92,7 +94,7 @@ func listen6(a *net.UDPAddr) (*listener6, error) {
 		if err != nil {
 			return nil, fmt.Errorf("DHCPv4: Listen could not find interface %s: %v", a.Zone, err)
 		}
-		l6.Interface = *ifi
+		l6.iface = *ifi
 	} else {
 		// When not bound to an interface, we need the information in each
 		// packet to know which interface it came on
@@ -147,6 +149,12 @@ func Start(config *config.Config) (*Servers, error) {
 			if err != nil {
 				goto cleanup
 			}
+
+			err = l4.tryOpenRawSock()
+			if err != nil {
+				log.Warningf("Could not open raw socket for DHCPv4 server (%s): %v", &addr, err)
+			}
+
 			l4.handlers = handlers4
 			srv.listeners = append(srv.listeners, l4)
 			go func() {

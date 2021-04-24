@@ -86,8 +86,8 @@ func (l *listener6) HandleMsg6(buf []byte, oob *ipv6.ControlMessage, peer *net.U
 		// LL need to be directed to the correct interface. Globally reachable
 		// addresses should use the default route, in case of asymetric routing.
 		switch {
-		case l.Interface.Index != 0:
-			woob = &ipv6.ControlMessage{IfIndex: l.Interface.Index}
+		case l.iface.Index != 0:
+			woob = &ipv6.ControlMessage{IfIndex: l.iface.Index}
 		case oob != nil && oob.IfIndex != 0:
 			woob = &ipv6.ControlMessage{IfIndex: oob.IfIndex}
 		default:
@@ -141,8 +141,11 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 	}
 
 	if resp != nil {
-		useEthernet := false
-		var peer *net.UDPAddr
+		var (
+			useEthernet = false
+			peer        *net.UDPAddr
+			sendCM      *ipv4.ControlMessage
+		)
 		if !req.GatewayIPAddr.IsUnspecified() {
 			// TODO: make RFC8357 compliant
 			peer = &net.UDPAddr{IP: req.GatewayIPAddr, Port: dhcpv4.ServerPort}
@@ -152,39 +155,37 @@ func (l *listener4) HandleMsg4(buf []byte, oob *ipv4.ControlMessage, _peer net.A
 			peer = &net.UDPAddr{IP: req.ClientIPAddr, Port: dhcpv4.ClientPort}
 		} else if req.IsBroadcast() {
 			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
-		} else {
+		} else if l.rawsock != nil {
 			//sends a layer2 frame so that we can define the destination MAC address
 			peer = &net.UDPAddr{IP: resp.YourIPAddr, Port: dhcpv4.ClientPort}
 			useEthernet = true
+		} else {
+			// Cannot send an L2 frame since we don't have a raw socket, fallback to broadcast
+			peer = &net.UDPAddr{IP: net.IPv4bcast, Port: dhcpv4.ClientPort}
 		}
 
-		var woob *ipv4.ControlMessage
 		if peer.IP.Equal(net.IPv4bcast) || peer.IP.IsLinkLocalUnicast() || useEthernet {
 			// Direct broadcasts, link-local and layer2 unicasts to the interface the request was
 			// received on. Other packets should use the normal routing table in
 			// case of asymetric routing
 			switch {
-			case l.Interface.Index != 0:
-				woob = &ipv4.ControlMessage{IfIndex: l.Interface.Index}
+			case l.iface.Index != 0:
+				sendCM = &ipv4.ControlMessage{IfIndex: l.iface.Index}
 			case oob != nil && oob.IfIndex != 0:
-				woob = &ipv4.ControlMessage{IfIndex: oob.IfIndex}
+				sendCM = &ipv4.ControlMessage{IfIndex: oob.IfIndex}
 			default:
-				log.Errorf("HandleMsg4: Did not receive interface information")
+				log.Errorf("BUG(HandleMsg4): Did not receive interface information, dropping packet with unknown destination")
+				return
 			}
 		}
 
 		if useEthernet {
-			intf, err := net.InterfaceByIndex(woob.IfIndex)
-			if err != nil {
-				log.Errorf("MainHandler4: Can not get Interface for index %d %v", woob.IfIndex, err)
-				return
-			}
-			err = sendEthernet(*intf, resp)
+			err = l.sendEthernet(resp)
 			if err != nil {
 				log.Errorf("MainHandler4: Cannot send Ethernet packet: %v", err)
 			}
 		} else {
-			if _, err := l.WriteTo(resp.ToBytes(), woob, peer); err != nil {
+			if _, err := l.WriteTo(resp.ToBytes(), sendCM, peer); err != nil {
 				log.Errorf("MainHandler4: conn.Write to %v failed: %v", peer, err)
 			}
 		}
