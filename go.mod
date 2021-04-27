@@ -5,13 +5,11 @@ go 1.13
 require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
 	github.com/google/gopacket v1.1.19
-	github.com/hugelgupf/socketpair v0.0.0-20190730060125-05d35a94e714 // indirect
 	github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
-	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
-	github.com/mdlayher/raw v0.0.0-20191009151244-50f2db8cc065 // indirect
+	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7
+	github.com/mdlayher/raw v0.0.0-20191009151244-50f2db8cc065
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/onsi/ginkgo v1.14.0 // indirect
