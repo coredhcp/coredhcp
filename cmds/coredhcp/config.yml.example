@@ -156,3 +156,10 @@ server4:
         # * lease duration can be given in any format understood by go's
         # "ParseDuration": https://golang.org/pkg/time/#ParseDuration
         - range: leases.txt 10.10.10.100 10.10.10.200 60s
+
+        # staticroute advertises additional routes the client should install in
+        # its routing table as described in RFC3442
+        # - staticroute: <destination>,<gateway> [<destination>,<gateway> ...]
+        # where destination should be in CIDR notation and gateway should be
+        # the IP address of the router through which the destination is reachable
+        # - staticroute: 10.20.20.0/24,10.10.10.1
