@@ -9,3 +9,4 @@ github.com/coredhcp/coredhcp/plugins/router
 github.com/coredhcp/coredhcp/plugins/serverid
 github.com/coredhcp/coredhcp/plugins/searchdomains
 github.com/coredhcp/coredhcp/plugins/sleep
+github.com/coredhcp/coredhcp/plugins/staticroute
