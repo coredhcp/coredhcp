@@ -31,9 +31,9 @@ import (
 
 var log = logger.GetLogger("plugins/webhook")
 
-// Global EndpointURL and AuthKey
-var EndpointURL string
-var AuthKey string
+// Global endpointURL and authKey
+var endpointURL string
+var authKey string
 
 var Plugin = plugins.Plugin{
 	Name:   "webhook",
@@ -44,22 +44,22 @@ var Plugin = plugins.Plugin{
 // Setup for IPV6
 func setup6(args ...string) (handler.Handler6, error) {
 	if len(args) < 2 {
-		return nil, errors.New("EndpointURL and AuthKey is required. Add config line: \"- webhook: https://127.0.0.1 SOMEKEY\"")
+		return nil, errors.New("endpointURL and authKey is required. Add config line: \"- webhook: https://127.0.0.1 SOMEKEY\"")
 	}
-	EndpointURL = args[0]
-	AuthKey = args[1]
-	log.Printf("Loaded EndpointURL and AuthKey.")
+	endpointURL = args[0]
+	authKey = args[1]
+	log.Printf("Loaded endpointURL and authKey.")
 	return webhookHandler6, nil
 }
 
 // Setup for IPV4
 func setup4(args ...string) (handler.Handler4, error) {
 	if len(args) < 2 {
-		return nil, errors.New("EndpointURL and AuthKey is required. Add config line: \"- webhook: https://127.0.0.1 SOMEKEY\"")
+		return nil, errors.New("endpointURL and authKey is required. Add config line: \"- webhook: https://127.0.0.1 SOMEKEY\"")
 	}
-	EndpointURL = args[0]
-	AuthKey = args[1]
-	log.Printf("Loaded EndpointURL and AuthKey.")
+	endpointURL = args[0]
+	authKey = args[1]
+	log.Printf("Loaded endpointURL and authKey.")
 	return webhookHandler4, nil
 }
 
@@ -85,7 +85,7 @@ func webhookHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	}
 
 	client := http.Client{Timeout: 5 * time.Second}
-	url := fmt.Sprintf("%s/?authKey=%s&hostname=%s&ip=%s&mac=%s", EndpointURL, url.QueryEscape(AuthKey), url.QueryEscape(hostname), url.QueryEscape(ip), url.QueryEscape(mac))
+	url := fmt.Sprintf("%s/?authKey=%s&hostname=%s&ip=%s&mac=%s", endpointURL, url.QueryEscape(authKey), url.QueryEscape(hostname), url.QueryEscape(ip), url.QueryEscape(mac))
 	log.Printf("URL: %s", url)
 	_, e := client.Get(url)
 	if e != nil {
