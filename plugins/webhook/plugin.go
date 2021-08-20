@@ -16,22 +16,22 @@
 package webhook
 
 import (
+	"errors"
+	"fmt"
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"net"
-  "net/url"
 	"net/http"
-	"fmt"
+	"net/url"
 	"time"
-	"errors"
 )
 
 var log = logger.GetLogger("plugins/webhook")
 
-var EndpointUrl	string
+var EndpointUrl string
 var AuthKey string
 
 var Plugin = plugins.Plugin{
@@ -76,16 +76,20 @@ func webhookHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	mac := req.ClientHWAddr.String()
 	hostname := string(net.IP(req.Options[12]))
 
-	if ip == "" || mac == "" { return resp, false }
-	if hostname == "" { hostname = "unset" }
+	if ip == "" || mac == "" {
+		return resp, false
+	}
+	if hostname == "" {
+		hostname = "unset"
+	}
 
-  client := http.Client{Timeout: 5 * time.Second}
-  url := fmt.Sprintf("%s/?authKey=%s&hostname=%s&ip=%s&mac=%s", EndpointUrl, url.QueryEscape(AuthKey), url.QueryEscape(hostname), url.QueryEscape(ip), url.QueryEscape(mac))
-  log.Printf("URL: %s", url)
-  _, e := client.Get(url)
+	client := http.Client{Timeout: 5 * time.Second}
+	url := fmt.Sprintf("%s/?authKey=%s&hostname=%s&ip=%s&mac=%s", EndpointUrl, url.QueryEscape(AuthKey), url.QueryEscape(hostname), url.QueryEscape(ip), url.QueryEscape(mac))
+	log.Printf("URL: %s", url)
+	_, e := client.Get(url)
 	if e != nil {
 		log.Warningf("GET returned error: %s", e)
-  }
+	}
 
 	return resp, false
 }
