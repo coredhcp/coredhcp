@@ -123,6 +123,9 @@ server4:
     # External plugins should document their arguments in their own
     # documentations or readmes
     plugins:
+        # Reports client hostname, ip, mac to a web backend
+        # - webhook: http://127.0.0.1/report SOMEKEY
+
         # lease_time sets the default lease time for advertised leases
         # - lease_time: <duration>
         # The duration can be given in any format understood by go's

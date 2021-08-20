@@ -35,6 +35,7 @@ var log = logger.GetLogger("plugins/webhook")
 var endpointURL string
 var authKey string
 
+// Plugin wraps the information necessary to register a plugin.
 var Plugin = plugins.Plugin{
 	Name:   "webhook",
 	Setup6: setup6,
