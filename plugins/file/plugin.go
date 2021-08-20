@@ -7,7 +7,10 @@
 // two fields separated by spaces: MAC address, and IP address. For example:
 //
 //  $ cat file_leases.txt
+//	# Comment here
 //  00:11:22:33:44:55 10.0.0.1
+//
+//	# Jeff from accounting
 //  01:23:45:67:89:01 10.0.10.10
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
@@ -74,6 +77,12 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 		if len(line) == 0 {
 			continue
 		}
+		if line == "" {
+			continue
+		}
+    if strings.HasPrefix(line, "#") {
+      continue
+    }
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
 			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
@@ -108,6 +117,12 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		if len(line) == 0 {
 			continue
 		}
+		if line == "" {
+			continue
+		}
+    if strings.HasPrefix(line, "#") {
+      continue
+    }
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
 			return nil, fmt.Errorf("malformed line: %s", line)
