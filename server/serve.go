@@ -153,6 +153,8 @@ func Start(config *config.Config) (*Servers, error) {
 			err = l4.tryOpenRawSock()
 			if err != nil {
 				log.Warningf("Could not open raw socket for DHCPv4 server (%s): %v", &addr, err)
+			} else {
+				log.Info("L2 Unicast to unconfigured clients available")
 			}
 
 			l4.handlers = handlers4
