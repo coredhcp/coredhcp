@@ -110,14 +110,14 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line: %s", line)
+			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
 			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
 		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To16() == nil {
+		if ipaddr.To16() == nil || ipaddr.To4() != nil {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
@@ -197,14 +197,18 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	if filename == "" {
 		return nil, nil, errors.New("got empty file name")
 	}
+	var protver int
 	if v6 {
+		protver = 6
 		records, err = LoadDHCPv6Records(filename)
 	} else {
+		protver = 4
 		records, err = LoadDHCPv4Records(filename)
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load DHCPv6 records: %v", err)
+		return nil, nil, fmt.Errorf("failed to load DHCPv%d records: %v", protver, err)
 	}
+
 	StaticRecords = records
 	log.Infof("loaded %d leases from %s", len(records), filename)
 	return Handler6, Handler4, nil
