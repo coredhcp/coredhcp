@@ -6,7 +6,8 @@
 // URL, e.g. http://[fe80::abcd:efff:fe12:3456]/my-nbp or tftp://10.0.0.1/my-nbp .
 // The NBP information is only added if it is requested by the client.
 //
-// Note that for DHCPv4 the URL will be split into TFTP server name (option 66)
+// Note that for DHCPv4, unless the URL is prefixed with a "http", "https" or
+// "ftp" scheme, the URL will be split into TFTP server name (option 66)
 // and Bootfile name (option 67), so the scheme will be stripped out, and it
 // will be treated as a TFTP URL. Anything other than host name and file path
 // will be ignored (no port, no query string, etc).
@@ -82,9 +83,17 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if err != nil {
 		return nil, err
 	}
-	otsn := dhcpv4.OptTFTPServerName(u.Host)
-	opt66 = &otsn
-	obfn := dhcpv4.OptBootFileName(u.Path)
+
+	var otsn, obfn dhcpv4.Option
+	switch u.Scheme {
+	case "http", "https", "ftp":
+		obfn = dhcpv4.OptBootFileName(u.String())
+	default:
+		otsn = dhcpv4.OptTFTPServerName(u.Host)
+		obfn = dhcpv4.OptBootFileName(u.Path)
+		opt66 = &otsn
+	}
+
 	opt67 = &obfn
 	log.Printf("loaded NBP plugin for DHCPv4.")
 	return nbpHandler4, nil
@@ -117,16 +126,17 @@ func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 }
 
 func nbpHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	if opt66 == nil || opt67 == nil {
+	if opt67 == nil {
 		// nothing to do
 		return resp, true
 	}
-	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) {
+	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && opt66 != nil {
 		resp.Options.Update(*opt66)
+		log.Debugf("Added NBP %s / %s to request", opt66, opt67)
 	}
 	if req.IsOptionRequested(dhcpv4.OptionBootfileName) {
 		resp.Options.Update(*opt67)
+		log.Debugf("Added NBP %s to request", opt67)
 	}
-	log.Debugf("Added NBP %s / %s to request", opt66, opt67)
 	return resp, true
 }
