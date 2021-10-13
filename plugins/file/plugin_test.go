@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
@@ -319,16 +320,38 @@ func TestSetupFile(t *testing.T) {
 		os.Remove(tmp.Name())
 	}()
 
-	_, err = tmp.WriteString("00:11:22:33:44:55 2001:db8::10:1\n")
-	require.NoError(t, err)
-	_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
-	require.NoError(t, err)
+	t.Run("typical case", func(t *testing.T) {
+		_, err = tmp.WriteString("00:11:22:33:44:55 2001:db8::10:1\n")
+		require.NoError(t, err)
+		_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
+		require.NoError(t, err)
 
-	assert.Equal(t, 0, len(StaticRecords))
+		assert.Equal(t, 0, len(StaticRecords))
 
-	// leases should show up in StaticRecords
-	_, _, err = setupFile(true, tmp.Name())
-	if assert.NoError(t, err) {
-		assert.Equal(t, 2, len(StaticRecords))
-	}
+		// leases should show up in StaticRecords
+		_, _, err = setupFile(true, tmp.Name())
+		if assert.NoError(t, err) {
+			assert.Equal(t, 2, len(StaticRecords))
+		}
+	})
+
+	t.Run("autorefresh enabled", func(t *testing.T) {
+		_, _, err = setupFile(true, tmp.Name(), autoRefreshArg)
+		if assert.NoError(t, err) {
+			assert.Equal(t, 2, len(StaticRecords))
+		}
+		// we add more leases to the file
+		// this should trigger an event to refresh the leases database
+		// without calling setupFile again
+		_, err = tmp.WriteString("22:33:44:55:66:77 2001:db8::10:3\n")
+		require.NoError(t, err)
+		// since the event is processed asynchronously, give it a little time
+		time.Sleep(time.Millisecond * 100)
+		// an additional record should show up in the database
+		// but we should respect the locking first
+		recLock.RLock()
+		defer recLock.RUnlock()
+
+		assert.Equal(t, 3, len(StaticRecords))
+	})
 }
