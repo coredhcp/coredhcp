@@ -73,8 +73,10 @@ server6:
         - server_id: LL 00:de:ad:be:ef:00
 
         # file serves leases defined in a static file, matching link-layer addresses to IPs
-        # - file: <file name>
+        # - file: <file name> [autorefresh]
         # The file format is one lease per line, "<hw address> <IPv6>"
+        # When the 'autorefresh' argument is given, the plugin will try to refresh
+        # the lease mapping during runtime whenever the lease file is updated.
         - file: "leases.txt"
 
         # dns adds information about available DNS resolvers to the responses
