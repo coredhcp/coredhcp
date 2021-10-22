@@ -47,7 +47,7 @@ var serverConfig = config.Config{
 // This function *must* be run in its own routine
 // For now this assumes ns are created outside.
 // TODO: dynamically create NS and interfaces directly in the test program
-func runServer(readyCh chan<- struct{}, nsName string, desiredPlugins []*plugins.Plugin) {
+func runServer(readyCh chan<- struct{}, nsName string, desiredPlugins []plugins.Plugin) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	ns, err := netns.GetFromName(nsName)
@@ -60,7 +60,7 @@ func runServer(readyCh chan<- struct{}, nsName string, desiredPlugins []*plugins
 	// register plugins
 	for _, pl := range desiredPlugins {
 		if err := plugins.RegisterPlugin(pl); err != nil {
-			log.Panicf("Failed to register plugin `%s`: %v", pl.Name, err)
+			log.Panicf("Failed to register plugin `%s`: %v", pl.GetName(), err)
 		}
 	}
 	// start DHCP server
@@ -107,8 +107,8 @@ func TestDora(t *testing.T) {
 	readyCh := make(chan struct{}, 1)
 	go runServer(readyCh,
 		"coredhcp-direct-upper",
-		[]*plugins.Plugin{
-			&serverid.Plugin, &file.Plugin,
+		[]plugins.Plugin{
+			&serverid.Plugin{}, &file.Plugin{},
 		},
 	)
 	// wait for server to be ready before sending DHCP request

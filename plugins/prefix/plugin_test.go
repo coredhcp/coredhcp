@@ -10,6 +10,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	dhcpIana "github.com/insomniacslk/dhcp/iana"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -35,7 +36,9 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler, err := setupPrefix("2001:db8::/48", "64")
+	p := &Plugin{}
+
+	handler, err := p.Setup6("2001:db8::/48", "64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,4 +93,9 @@ func TestDup(t *testing.T) {
 	if !samePrefix(dupPrefix, prefix) {
 		t.Fatalf("dup doesn't work: got %v expected %v", dupPrefix, prefix)
 	}
+}
+
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "prefix", p.GetName())
 }

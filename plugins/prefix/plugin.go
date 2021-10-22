@@ -29,22 +29,25 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/coredhcp/coredhcp/plugins/allocators"
 	"github.com/coredhcp/coredhcp/plugins/allocators/bitmap"
 )
 
 var log = logger.GetLogger("plugins/prefix")
 
-// Plugin registers the prefix. Prefix delegation only exists for DHCPv6
-var Plugin = plugins.Plugin{
-	Name:   "prefix",
-	Setup6: setupPrefix,
-}
-
 const leaseDuration = 3600 * time.Second
 
-func setupPrefix(args ...string) (handler.Handler6, error) {
+// Plugin implements the Plugin interface. Prefix delegation only exists for DHCPv6
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "prefix"
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	// - prefix: 2001:db8::/48 64
 	if len(args) < 2 {
 		return nil, errors.New("Need both a subnet and an allocation max size")
@@ -70,6 +73,24 @@ func setupPrefix(args ...string) (handler.Handler6, error) {
 		Records:   make(map[string][]lease),
 		allocator: alloc,
 	}).Handle, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	// currently not implemented
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
+	// currently not implemented
+	return nil, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	// currently not implemented
+	return nil
 }
 
 type lease struct {

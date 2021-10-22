@@ -11,21 +11,25 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-var log = logger.GetLogger("plugins/staticroute")
+var (
+	log    = logger.GetLogger("plugins/staticroute")
+	routes dhcpv4.Routes
+)
 
-// Plugin wraps the information necessary to register a plugin.
-var Plugin = plugins.Plugin{
-	Name:   "staticroute",
-	Setup4: setup4,
+// Plugin implements the Plugin interface
+type Plugin struct {
 }
 
-var routes dhcpv4.Routes
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "staticroute"
+}
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	routes = make(dhcpv4.Routes, 0)
 
@@ -58,6 +62,21 @@ func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded %d static routes.", len(routes))
 
 	return Handler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
+	return nil, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
 }
 
 // Handler4 handles DHCPv4 packets for the static routes plugin

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/stretchr/testify/assert"
 )
 
 func makeTestDUID(uuid string) *dhcpv6.Duid {
@@ -123,4 +124,9 @@ func TestRejectInnerMessageServerID(t *testing.T) {
 	if !stop {
 		t.Error("server_id did not interrupt processing on a relayed solicit with a ServerID")
 	}
+}
+
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "server_id", p.GetName())
 }

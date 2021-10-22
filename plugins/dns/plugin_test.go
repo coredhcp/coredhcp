@@ -10,6 +10,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAddServer6(t *testing.T) {
@@ -146,4 +147,9 @@ func TestNotRequested4(t *testing.T) {
 	if len(servers) != 0 {
 		t.Errorf("Found %d DNS servers when explicitly not requested", len(servers))
 	}
+}
+
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "dns", p.GetName())
 }

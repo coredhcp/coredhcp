@@ -13,33 +13,35 @@ import (
 func TestSetup4(t *testing.T) {
 	assert.Empty(t, routes)
 
+	p := &Plugin{}
+
 	var err error
 	// no args
-	_, err = setup4()
+	_, err = p.Setup4()
 	if assert.Error(t, err) {
 		assert.Equal(t, "need at least one static route", err.Error())
 	}
 
 	// invalid arg
-	_, err = setup4("foo")
+	_, err = p.Setup4("foo")
 	if assert.Error(t, err) {
 		assert.Equal(t, "expected a destination/gateway pair, got: foo", err.Error())
 	}
 
 	// invalid destination
-	_, err = setup4("foo,")
+	_, err = p.Setup4("foo,")
 	if assert.Error(t, err) {
 		assert.Equal(t, "expected a destination subnet, got: foo", err.Error())
 	}
 
 	// invalid gateway
-	_, err = setup4("10.0.0.0/8,foo")
+	_, err = p.Setup4("10.0.0.0/8,foo")
 	if assert.Error(t, err) {
 		assert.Equal(t, "expected a gateway address, got: foo", err.Error())
 	}
 
 	// valid route
-	_, err = setup4("10.0.0.0/8,192.168.1.1")
+	_, err = p.Setup4("10.0.0.0/8,192.168.1.1")
 	if assert.NoError(t, err) {
 		if assert.Equal(t, 1, len(routes)) {
 			assert.Equal(t, "10.0.0.0/8", routes[0].Dest.String())
@@ -48,7 +50,7 @@ func TestSetup4(t *testing.T) {
 	}
 
 	// multiple valid routes
-	_, err = setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
+	_, err = p.Setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
 	if assert.NoError(t, err) {
 		if assert.Equal(t, 2, len(routes)) {
 			assert.Equal(t, "10.0.0.0/8", routes[0].Dest.String())
@@ -57,4 +59,9 @@ func TestSetup4(t *testing.T) {
 			assert.Equal(t, "192.168.1.100", routes[1].Router.String())
 		}
 	}
+}
+
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "staticroute", p.GetName())
 }

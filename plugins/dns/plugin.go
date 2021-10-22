@@ -10,26 +10,27 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger("plugins/dns")
-
-// Plugin wraps the DNS plugin information.
-var Plugin = plugins.Plugin{
-	Name:   "dns",
-	Setup6: setup6,
-	Setup4: setup4,
-}
-
 var (
+	log         = logger.GetLogger("plugins/dns")
 	dnsServers6 []net.IP
 	dnsServers4 []net.IP
 )
 
-func setup6(args ...string) (handler.Handler6, error) {
+// Plugin implements the Plugin interface
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "dns"
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
 	}
@@ -44,7 +45,13 @@ func setup6(args ...string) (handler.Handler6, error) {
 	return Handler6, nil
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
@@ -58,6 +65,11 @@ func setup4(args ...string) (handler.Handler4, error) {
 	}
 	log.Infof("loaded %d DNS servers.", len(dnsServers4))
 	return Handler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
 }
 
 // Handler6 handles DHCPv6 packets for the dns plugin

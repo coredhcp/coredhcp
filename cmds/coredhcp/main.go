@@ -59,19 +59,19 @@ func getLogLevels() []string {
 	return levels
 }
 
-var desiredPlugins = []*plugins.Plugin{
-	&pl_dns.Plugin,
-	&pl_file.Plugin,
-	&pl_leasetime.Plugin,
-	&pl_nbp.Plugin,
-	&pl_netmask.Plugin,
-	&pl_prefix.Plugin,
-	&pl_range.Plugin,
-	&pl_router.Plugin,
-	&pl_searchdomains.Plugin,
-	&pl_serverid.Plugin,
-	&pl_sleep.Plugin,
-	&pl_staticroute.Plugin,
+var desiredPlugins = []plugins.Plugin{
+	&pl_dns.Plugin{},
+	&pl_file.Plugin{},
+	&pl_leasetime.Plugin{},
+	&pl_nbp.Plugin{},
+	&pl_netmask.Plugin{},
+	&pl_prefix.Plugin{},
+	&pl_range.Plugin{},
+	&pl_router.Plugin{},
+	&pl_searchdomains.Plugin{},
+	&pl_serverid.Plugin{},
+	&pl_sleep.Plugin{},
+	&pl_staticroute.Plugin{},
 }
 
 func main() {
@@ -79,7 +79,7 @@ func main() {
 
 	if *flagPlugins {
 		for _, p := range desiredPlugins {
-			fmt.Println(p.Name)
+			fmt.Println(p.GetName())
 		}
 		os.Exit(0)
 	}
@@ -106,7 +106,7 @@ func main() {
 	// register plugins
 	for _, plugin := range desiredPlugins {
 		if err := plugins.RegisterPlugin(plugin); err != nil {
-			log.Fatalf("Failed to register plugin '%s': %v", plugin.Name, err)
+			log.Fatalf("Failed to register plugin '%s': %v", plugin.GetName(), err)
 		}
 	}
 

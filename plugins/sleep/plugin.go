@@ -12,15 +12,11 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var (
-	pluginName = "sleep"
-	log        = logger.GetLogger("plugins/" + pluginName)
-)
+var log = logger.GetLogger("plugins/sleep")
 
 // Example configuration of the `sleep` plugin:
 //
@@ -37,14 +33,17 @@ var (
 // For the duration format, see the documentation of `time.ParseDuration`,
 // https://golang.org/pkg/time/#ParseDuration .
 
-// Plugin contains the `sleep` plugin data.
-var Plugin = plugins.Plugin{
-	Name:   pluginName,
-	Setup6: setup6,
-	Setup4: setup4,
+// Plugin implements the Plugin interface
+type Plugin struct {
 }
 
-func setup6(args ...string) (handler.Handler6, error) {
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "sleep"
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("want exactly one argument, got %d", len(args))
 	}
@@ -56,7 +55,13 @@ func setup6(args ...string) (handler.Handler6, error) {
 	return makeSleepHandler6(delay), nil
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("want exactly one argument, got %d", len(args))
 	}
@@ -66,6 +71,11 @@ func setup4(args ...string) (handler.Handler4, error) {
 	}
 	log.Printf("loaded plugin for DHCPv4.")
 	return makeSleepHandler4(delay), nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
 }
 
 func makeSleepHandler6(delay time.Duration) handler.Handler6 {

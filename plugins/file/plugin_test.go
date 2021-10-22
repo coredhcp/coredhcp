@@ -201,6 +201,8 @@ func TestLoadDHCPv6Records(t *testing.T) {
 }
 
 func TestHandler4(t *testing.T) {
+	p := &Plugin{}
+
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv4 request
 		mac := "00:11:22:33:44:55"
@@ -213,7 +215,7 @@ func TestHandler4(t *testing.T) {
 
 		// if we handle this DHCP request, nothing should change since the lease is
 		// unknown
-		result, stop := Handler4(req, resp)
+		result, stop := p.Handler4(req, resp)
 		assert.Same(t, result, resp)
 		assert.False(t, stop)
 		assert.Nil(t, result.YourIPAddr)
@@ -231,23 +233,25 @@ func TestHandler4(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]net.IP{
+		p.StaticRecords = map[string]net.IP{
 			mac: clIPAddr,
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
 		// in the result
-		result, stop := Handler4(req, resp)
+		result, stop := p.Handler4(req, resp)
 		assert.Same(t, result, resp)
 		assert.True(t, stop)
 		assert.Equal(t, clIPAddr, result.YourIPAddr)
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		p.StaticRecords = make(map[string]net.IP)
 	})
 }
 
 func TestHandler6(t *testing.T) {
+	p := &Plugin{}
+
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv6 request
 		mac := "11:22:33:44:55:66"
@@ -260,7 +264,7 @@ func TestHandler6(t *testing.T) {
 
 		// if we handle this DHCP request, nothing should change since the lease is
 		// unknown
-		result, stop := Handler6(req, resp)
+		result, stop := p.Handler6(req, resp)
 		assert.False(t, stop)
 		assert.Equal(t, 0, len(result.GetOption(dhcpv6.OptionIANA)))
 	})
@@ -277,13 +281,13 @@ func TestHandler6(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("2001:db8::10:1")
-		StaticRecords = map[string]net.IP{
+		p.StaticRecords = map[string]net.IP{
 			mac: clIPAddr,
 		}
 
 		// if we handle this DHCP request, there should be a specific IANA option
 		// set in the resulting response
-		result, stop := Handler6(req, resp)
+		result, stop := p.Handler6(req, resp)
 		assert.False(t, stop)
 		if assert.Equal(t, 1, len(result.GetOption(dhcpv6.OptionIANA))) {
 			opt := result.GetOneOption(dhcpv6.OptionIANA)
@@ -291,24 +295,26 @@ func TestHandler6(t *testing.T) {
 		}
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		p.StaticRecords = make(map[string]net.IP)
 	})
 }
 
 func TestSetupFile(t *testing.T) {
+	p := &Plugin{}
+
 	// too few arguments
-	_, _, err := setupFile(false)
+	_, _, err := p.setupFile(false)
 	assert.Error(t, err)
 
 	// empty file name
-	_, _, err = setupFile(false, "")
+	_, _, err = p.setupFile(false, "")
 	assert.Error(t, err)
 
 	// trigger error in LoadDHCPv*Records
-	_, _, err = setupFile(false, "/foo/bar")
+	_, _, err = p.setupFile(false, "/foo/bar")
 	assert.Error(t, err)
 
-	_, _, err = setupFile(true, "/foo/bar")
+	_, _, err = p.setupFile(true, "/foo/bar")
 	assert.Error(t, err)
 
 	// setup temp leases file
@@ -324,11 +330,16 @@ func TestSetupFile(t *testing.T) {
 	_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
 	require.NoError(t, err)
 
-	assert.Equal(t, 0, len(StaticRecords))
+	assert.Equal(t, 0, len(p.StaticRecords))
 
 	// leases should show up in StaticRecords
-	_, _, err = setupFile(true, tmp.Name())
+	_, _, err = p.setupFile(true, tmp.Name())
 	if assert.NoError(t, err) {
-		assert.Equal(t, 2, len(StaticRecords))
+		assert.Equal(t, 2, len(p.StaticRecords))
 	}
+}
+
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "file", p.GetName())
 }

@@ -17,11 +17,13 @@ import (
 func TestAddDomains6(t *testing.T) {
 	assert := assert.New(t)
 
+	p := &Plugin{}
+
 	// Search domains we will expect the DHCP server to assign
 	searchDomains := []string{"domain.a", "domain.b"}
 
 	// Init plugin
-	handler6, err := Plugin.Setup6(searchDomains...)
+	handler6, err := p.Setup6(searchDomains...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +59,8 @@ func TestAddDomains6(t *testing.T) {
 func TestAddDomains4(t *testing.T) {
 	assert := assert.New(t)
 
+	p := &Plugin{}
+
 	// Search domains we will expect the DHCP server to assign
 	// NOTE: these domains should be different from the v6 test domains;
 	// this tests that we haven't accidentally set the v6 domains in the
@@ -64,7 +68,7 @@ func TestAddDomains4(t *testing.T) {
 	searchDomains := []string{"domain.b", "domain.c"}
 
 	// Init plugin
-	handler4, err := Plugin.Setup4(searchDomains...)
+	handler4, err := p.Setup4(searchDomains...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,5 +96,9 @@ func TestAddDomains4(t *testing.T) {
 
 	searchLabels := resp.DomainSearch().Labels
 	assert.Equal(searchDomains, searchLabels)
+}
 
+func TestGetName(t *testing.T) {
+	p := &Plugin{}
+	assert.Equal(t, "searchdomains", p.GetName())
 }
