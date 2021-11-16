@@ -27,14 +27,20 @@ func TestLoadDHCPv4Records(t *testing.T) {
 			os.Remove(tmp.Name())
 		}()
 
-		// fill temp file with valid lease lines
+		// fill temp file with valid lease lines and some comments
 		_, err = tmp.WriteString("00:11:22:33:44:55 192.0.2.100\n")
 		require.NoError(t, err)
 		_, err = tmp.WriteString("11:22:33:44:55:66 192.0.2.101\n")
 		require.NoError(t, err)
+		_, err = tmp.WriteString("# this is a comment\n")
+		require.NoError(t, err)
 
 		records, err := LoadDHCPv4Records(tmp.Name())
-		if assert.NoError(t, err) {
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		if assert.Equal(t, 2, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:55") {
 				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:55"])
 			}
@@ -119,14 +125,20 @@ func TestLoadDHCPv6Records(t *testing.T) {
 			os.Remove(tmp.Name())
 		}()
 
-		// fill temp file with valid lease lines
+		// fill temp file with valid lease lines and some comments
 		_, err = tmp.WriteString("00:11:22:33:44:55 2001:db8::10:1\n")
 		require.NoError(t, err)
 		_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
 		require.NoError(t, err)
+		_, err = tmp.WriteString("# this is a comment\n")
+		require.NoError(t, err)
 
 		records, err := LoadDHCPv6Records(tmp.Name())
-		if assert.NoError(t, err) {
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		if assert.Equal(t, 2, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:55") {
 				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records["00:11:22:33:44:55"])
 			}

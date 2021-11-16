@@ -85,6 +85,9 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 		if len(line) == 0 {
 			continue
 		}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
 			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
@@ -113,10 +116,12 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		return nil, err
 	}
 	records := make(map[string]net.IP)
-	// TODO ignore comments
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		tokens := strings.Fields(line)
