@@ -9,15 +9,12 @@ package searchdomains
 import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/rfc1035label"
 )
 
-var log = logger.GetLogger("plugins/searchdomains")
-
-// Plugin wraps the default DNS search domain options.
+// Plugin implements the Plugin interface
 // Note that importing the plugin is not enough to use it: you have to
 // explicitly specify the intention to use it in the `config.yml` file, in the
 // plugins section. For searchdomains:
@@ -28,18 +25,23 @@ var log = logger.GetLogger("plugins/searchdomains")
 //   - server_id: LL aa:bb:cc:dd:ee:ff
 //   - file: "leases.txt"
 //
-var Plugin = plugins.Plugin{
-	Name:   "searchdomains",
-	Setup6: setup6,
-	Setup4: setup4,
+type Plugin struct {
 }
 
-// These are the DNS search domains that are set by the plugin.
-// Note that DHCPv4 and DHCPv6 options are totally independent.
-// If you need the same settings for both, you'll need to configure
-// this plugin once for the v4 and once for the v6 server.
-var v4SearchList []string
-var v6SearchList []string
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "searchdomains"
+}
+
+var (
+	log = logger.GetLogger("plugins/searchdomains")
+	// These are the DNS search domains that are set by the plugin.
+	// Note that DHCPv4 and DHCPv6 options are totally independent.
+	// If you need the same settings for both, you'll need to configure
+	// this plugin once for the v4 and once for the v6 server.
+	v4SearchList []string
+	v6SearchList []string
+)
 
 // copySlice creates a new copy of a string slice in memory.
 // This helps to ensure that downstream plugins can't corrupt
@@ -50,16 +52,28 @@ func copySlice(original []string) []string {
 	return copied
 }
 
-func setup6(args ...string) (handler.Handler6, error) {
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	v6SearchList = args
 	log.Printf("Registered domain search list (DHCPv6) %s", v6SearchList)
 	return domainSearchListHandler6, nil
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	v4SearchList = args
 	log.Printf("Registered domain search list (DHCPv4) %s", v4SearchList)
 	return domainSearchListHandler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
 }
 
 func domainSearchListHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {

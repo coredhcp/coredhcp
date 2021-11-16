@@ -15,7 +15,6 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/coredhcp/coredhcp/plugins/allocators"
 	"github.com/coredhcp/coredhcp/plugins/allocators/bitmap"
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -23,10 +22,13 @@ import (
 
 var log = logger.GetLogger("plugins/range")
 
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name:   "range",
-	Setup4: setupRange,
+// Plugin implements the Plugin interface
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "range"
 }
 
 //Record holds an IP lease record
@@ -85,10 +87,23 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	return resp, false
 }
 
-func setupRange(args ...string) (handler.Handler4, error) {
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
+	// currently not implemented
+	return nil, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	// currently not implemented
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	var (
 		err error
-		p   PluginState
+		ps  PluginState
 	)
 
 	if len(args) < 4 {
@@ -110,26 +125,32 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		return nil, errors.New("start of IP range has to be lower than the end of an IP range")
 	}
 
-	p.allocator, err = bitmap.NewIPv4Allocator(ipRangeStart, ipRangeEnd)
+	ps.allocator, err = bitmap.NewIPv4Allocator(ipRangeStart, ipRangeEnd)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an allocator: %w", err)
 	}
 
-	p.LeaseTime, err = time.ParseDuration(args[3])
+	ps.LeaseTime, err = time.ParseDuration(args[3])
 	if err != nil {
 		return nil, fmt.Errorf("invalid lease duration: %v", args[3])
 	}
 
-	p.Recordsv4, err = loadRecordsFromFile(filename)
+	ps.Recordsv4, err = loadRecordsFromFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("could not load records from file: %v", err)
 	}
 
-	log.Printf("Loaded %d DHCPv4 leases from %s", len(p.Recordsv4), filename)
+	log.Printf("Loaded %d DHCPv4 leases from %s", len(ps.Recordsv4), filename)
 
-	if err := p.registerBackingFile(filename); err != nil {
+	if err := ps.registerBackingFile(filename); err != nil {
 		return nil, fmt.Errorf("could not setup lease storage: %w", err)
 	}
 
-	return p.Handler4, nil
+	return ps.Handler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	// currently not implemented
+	return nil
 }

@@ -35,29 +35,24 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
 var log = logger.GetLogger("plugins/file")
 
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name:   "file",
-	Setup6: setup6,
-	Setup4: setup4,
+// Plugin implements Plugin interface
+type Plugin struct {
+	leaseFile string
+
+	// StaticRecords holds a MAC -> IP address mapping
+	StaticRecords map[string]net.IP
 }
 
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
-
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "file"
+}
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
@@ -126,7 +121,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 }
 
 // Handler6 handles DHCPv6 packets for the file plugin
-func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (p *Plugin) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	m, err := req.GetInnerMessage()
 	if err != nil {
 		log.Errorf("BUG: could not decapsulate: %v", err)
@@ -145,7 +140,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 	log.Debugf("looking up an IP address for MAC %s", mac.String())
 
-	ipaddr, ok := StaticRecords[mac.String()]
+	ipaddr, ok := p.StaticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
@@ -166,8 +161,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 }
 
 // Handler4 handles DHCPv4 packets for the file plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
+func (p *Plugin) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	ipaddr, ok := p.StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
@@ -177,17 +172,31 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, true
 }
 
-func setup6(args ...string) (handler.Handler6, error) {
-	h6, _, err := setupFile(true, args...)
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
+	h6, _, err := p.setupFile(true, args...)
 	return h6, err
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
-	_, h4, err := setupFile(false, args...)
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	_, _, err := p.setupFile(true, p.leaseFile)
+	return err
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
+	_, h4, err := p.setupFile(false, args...)
 	return h4, err
 }
 
-func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	_, _, err := p.setupFile(false, p.leaseFile)
+	return err
+}
+
+func (p *Plugin) setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
 	var err error
 	var records map[string]net.IP
 	if len(args) < 1 {
@@ -197,6 +206,10 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	if filename == "" {
 		return nil, nil, errors.New("got empty file name")
 	}
+
+	// remember the filename so we know what to refresh
+	p.leaseFile = filename
+
 	var protver int
 	if v6 {
 		protver = 6
@@ -209,7 +222,8 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		return nil, nil, fmt.Errorf("failed to load DHCPv%d records: %v", protver, err)
 	}
 
-	StaticRecords = records
+	p.StaticRecords = records
+
 	log.Infof("loaded %d leases from %s", len(records), filename)
-	return Handler6, Handler4, nil
+	return p.Handler6, p.Handler4, nil
 }

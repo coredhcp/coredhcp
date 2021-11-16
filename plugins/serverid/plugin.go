@@ -11,26 +11,26 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/iana"
 )
 
-var log = logger.GetLogger("plugins/server_id")
-
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name:   "server_id",
-	Setup6: setup6,
-	Setup4: setup4,
-}
-
 // v6ServerID is the DUID of the v6 server
 var (
+	log        = logger.GetLogger("plugins/server_id")
 	v6ServerID *dhcpv6.Duid
 	v4ServerID net.IP
 )
+
+// Plugin implements the Plugin interface
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "server_id"
+}
 
 // Handler6 handles DHCPv6 packets for the server_id plugin.
 func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
@@ -95,7 +95,8 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, false
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loading `server_id` plugin for DHCPv4 with args: %v", args)
 	if len(args) < 1 {
 		return nil, errors.New("need an argument")
@@ -111,7 +112,13 @@ func setup4(args ...string) (handler.Handler4, error) {
 	return Handler4, nil
 }
 
-func setup6(args ...string) (handler.Handler6, error) {
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	log.Printf("loading `server_id` plugin for DHCPv6 with args: %v", args)
 	if len(args) < 2 {
 		return nil, errors.New("need a DUID type and value")
@@ -154,4 +161,9 @@ func setup6(args ...string) (handler.Handler6, error) {
 	log.Printf("using %s %s", duidType, duidValue)
 
 	return Handler6, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
 }

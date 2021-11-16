@@ -35,24 +35,24 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-var log = logger.GetLogger("plugins/nbp")
-
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name:   "nbp",
-	Setup6: setup6,
-	Setup4: setup4,
-}
-
 var (
+	log          = logger.GetLogger("plugins/nbp")
 	opt59, opt60 dhcpv6.Option
 	opt66, opt67 *dhcpv4.Option
 )
+
+// Plugin implements Plugin interface
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "nbp"
+}
 
 func parseArgs(args ...string) (*url.URL, error) {
 	if len(args) != 1 {
@@ -61,7 +61,8 @@ func parseArgs(args ...string) (*url.URL, error) {
 	return url.Parse(args[0])
 }
 
-func setup6(args ...string) (handler.Handler6, error) {
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	u, err := parseArgs(args...)
 	if err != nil {
 		return nil, err
@@ -78,7 +79,14 @@ func setup6(args ...string) (handler.Handler6, error) {
 	return nbpHandler6, nil
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	// currently not implemented
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	u, err := parseArgs(args...)
 	if err != nil {
 		return nil, err
@@ -97,6 +105,12 @@ func setup4(args ...string) (handler.Handler4, error) {
 	opt67 = &obfn
 	log.Printf("loaded NBP plugin for DHCPv4.")
 	return nbpHandler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	// currently not implemented
+	return nil
 }
 
 func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {

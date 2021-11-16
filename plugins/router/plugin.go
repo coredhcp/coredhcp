@@ -10,23 +10,35 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-var log = logger.GetLogger("plugins/router")
-
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name:   "router",
-	Setup4: setup4,
-}
-
 var (
+	log     = logger.GetLogger("plugins/router")
 	routers []net.IP
 )
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Plugin implements the Plugin interface
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "router"
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
+	return nil, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("Loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one router IP address")
@@ -40,6 +52,11 @@ func setup4(args ...string) (handler.Handler4, error) {
 	}
 	log.Infof("loaded %d router IP addresses.", len(routers))
 	return Handler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	return nil
 }
 
 //Handler4 handles DHCPv4 packets for the router plugin

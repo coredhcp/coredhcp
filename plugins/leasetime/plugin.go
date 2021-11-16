@@ -10,22 +10,22 @@ import (
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
-
-// Plugin wraps plugin registration information
-var Plugin = plugins.Plugin{
-	Name: "lease_time",
-	// currently not supported for DHCPv6
-	Setup6: nil,
-	Setup4: setup4,
-}
 
 var (
 	log         = logger.GetLogger("plugins/lease_time")
 	v4LeaseTime time.Duration
 )
+
+// Plugin wraps plugin registration information
+type Plugin struct {
+}
+
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "lease_time"
+}
 
 // Handler4 handles DHCPv4 packets for the lease_time plugin.
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
@@ -39,7 +39,20 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	return resp, false
 }
 
-func setup4(args ...string) (handler.Handler4, error) {
+// Setup6 is the setup function to initialize the handler for DHCPv6
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
+	// currently not supported for DHCPv6
+	return nil, nil
+}
+
+// Refresh6 is called when the DHCPv6 is signaled to refresh
+func (p *Plugin) Refresh6() error {
+	// currently not implemented
+	return nil
+}
+
+// Setup4 is the setup function to initialize the handler for DHCPv4
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Print("loading `lease_time` plugin for DHCPv4")
 	if len(args) < 1 {
 		log.Error("No default lease time provided")
@@ -54,4 +67,10 @@ func setup4(args ...string) (handler.Handler4, error) {
 	v4LeaseTime = leaseTime
 
 	return Handler4, nil
+}
+
+// Refresh4 is called when the DHCPv4 is signaled to refresh
+func (p *Plugin) Refresh4() error {
+	// currently not implemented
+	return nil
 }

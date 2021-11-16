@@ -12,7 +12,6 @@ package example
 import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
-	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
@@ -61,29 +60,48 @@ var log = logger.GetLogger("plugins/example")
 //   - server_id: LL aa:bb:cc:dd:ee:ff
 //   - file: "leases.txt"
 //
-var Plugin = plugins.Plugin{
-	Name:   "example",
-	Setup6: setup6,
-	Setup4: setup4,
+
+// Plugin implements the Plugin interface.
+type Plugin struct {
+	// additional parameters in this struct can be used to refer to during
+	// the life cycle of the plugin
 }
 
-// setup6 is the setup function to initialize the handler for DHCPv6
+// GetName returns the name of the plugin
+func (p *Plugin) GetName() string {
+	return "example"
+}
+
+// Setup6 is the setup function to initialize the handler for DHCPv6
 // traffic. This function implements the `plugin.SetupFunc6` interface.
 // This function returns a `handler.Handler6` function, and an error if any.
 // In this example we do very little in the setup function, and just return the
 // `exampleHandler6` function. Such function will be called for every DHCPv6
 // packet that the server receives. Remember that a handler may not be called
 // for each packet, if the handler chain is interrupted before reaching it.
-func setup6(args ...string) (handler.Handler6, error) {
+func (p *Plugin) Setup6(args ...string) (handler.Handler6, error) {
 	log.Printf("loaded plugin for DHCPv6.")
 	return exampleHandler6, nil
 }
 
-// setup4 behaves like setupExample6, but for DHCPv4 packets. It
+// Refresh6 is the function that is called when the DHCPv6 receives the SIGHUP
+// signal. It can be used to refresh configuration or storage from a backend
+func (p *Plugin) Refresh6() error {
+	// when the Refresh6 function is not required, just return nil
+	return nil
+}
+
+// Setup4 behaves like Setup6, but for DHCPv4 packets. It
 // implements the `plugin.SetupFunc4` interface.
-func setup4(args ...string) (handler.Handler4, error) {
+func (p *Plugin) Setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
 	return exampleHandler4, nil
+}
+
+// Refresh4 is like Refresh6, but for the DHCPv4 server.
+func (p *Plugin) Refresh4() error {
+	// when the Refresh4 function is not required, just return nil
+	return nil
 }
 
 // exampleHandler6 handles DHCPv6 packets for the example plugin. It implements
