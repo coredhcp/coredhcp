@@ -137,6 +137,16 @@ server4:
         # The IP address should be one address where this server is reachable
         - server_id: 10.10.10.1
 
+        # file serves leases defined in a static file, matching link-layer addresses to IPs
+        # - file: <file name> [autorefresh]
+        # The file format is one lease per line, "<hw address> <IPv4> [netmask [gateway]]"
+        # where the netmask and gateway are optional. These are particularly useful
+        # when not all static leases are from the same subnet and have different
+        # routers and netmasks.
+        # When the 'autorefresh' argument is given, the plugin will try to refresh
+        # the lease mapping during runtime whenever the lease file is updated.
+        - file: "leases.txt"
+
         # dns advertises DNS resolvers usable by the clients on this network
         # - dns: <IP address> <...IP addresses>
         - dns: 8.8.8.8 8.8.4.4
