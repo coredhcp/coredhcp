@@ -18,10 +18,11 @@ import (
 
 var log = logger.GetLogger("plugins/mtu")
 
-// Plugin wraps the DNS plugin information.
+// Plugin wraps the MTU plugin information.
 var Plugin = plugins.Plugin{
 	Name:   "mtu",
 	Setup4: setup4,
+	// No Setup6 since DHCPv6 does not have MTU-related options
 }
 
 var (
