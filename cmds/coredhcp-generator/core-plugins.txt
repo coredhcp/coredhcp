@@ -1,6 +1,7 @@
 github.com/coredhcp/coredhcp/plugins/dns
 github.com/coredhcp/coredhcp/plugins/file
 github.com/coredhcp/coredhcp/plugins/leasetime
+github.com/coredhcp/coredhcp/plugins/mtu
 github.com/coredhcp/coredhcp/plugins/netmask
 github.com/coredhcp/coredhcp/plugins/nbp
 github.com/coredhcp/coredhcp/plugins/prefix
