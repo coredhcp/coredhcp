@@ -20,6 +20,7 @@ import (
 	pl_dns "github.com/coredhcp/coredhcp/plugins/dns"
 	pl_file "github.com/coredhcp/coredhcp/plugins/file"
 	pl_leasetime "github.com/coredhcp/coredhcp/plugins/leasetime"
+	pl_mtu "github.com/coredhcp/coredhcp/plugins/mtu"
 	pl_nbp "github.com/coredhcp/coredhcp/plugins/nbp"
 	pl_netmask "github.com/coredhcp/coredhcp/plugins/netmask"
 	pl_prefix "github.com/coredhcp/coredhcp/plugins/prefix"
@@ -65,6 +66,7 @@ var desiredPlugins = []*plugins.Plugin{
 	&pl_leasetime.Plugin,
 	&pl_nbp.Plugin,
 	&pl_netmask.Plugin,
+	&pl_mtu.Plugin,
 	&pl_prefix.Plugin,
 	&pl_range.Plugin,
 	&pl_router.Plugin,
