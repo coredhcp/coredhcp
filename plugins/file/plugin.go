@@ -2,13 +2,21 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-// Package file enables static mapping of MAC <--> IP addresses.
-// The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// Package file enables static mapping of MAC <--> IP addresses
+// or Subcriber-ID <--> IP addresses, as specified by RFC3993.
+//
+// The mapping is stored in an ASCII text file, where each mapping is described by one line .
+//
+// Each line can specify either a MAC address or a Subscriber-ID, and an IP address.  This
+// example shows two MAC addresses and two Subscriber-IDs.
 //
 //  $ cat file_leases.txt
 //  00:11:22:33:44:55 10.0.0.1
 //  01:23:45:67:89:01 10.0.10.10
+//  Subscriber-ID:"Boris" 10.10.10.20
+//  Subscriber-ID:"Another subscriber" 10.10.10.100
+//
+// There should be separate files for DHCP and DHCPv6 leases, you can't mix them.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
@@ -88,19 +96,32 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
+
 		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
-		}
-		hwaddr, err := net.ParseMAC(tokens[0])
-		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
-		}
-		ipaddr := net.ParseIP(tokens[1])
+
+		ipaddr := net.ParseIP(tokens[len(tokens)-1])
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		records[hwaddr.String()] = ipaddr
+
+		if strings.HasPrefix(line, "Subscriber-ID:\"") {
+			// (for now this parser allows unescaped quotes, but that will change)
+			deEscaper := strings.NewReplacer("\\\\", "\\", "\\\"", "\"")
+			lastQuoteIndex := strings.LastIndexAny(line, "\"")
+			if lastQuoteIndex == 14 || lastQuoteIndex == -1 {
+				return nil, fmt.Errorf("malformed line, Subscriber-ID not quoted properly (%s)", line)
+			}
+			records[deEscaper.Replace(line[15:lastQuoteIndex])] = ipaddr
+		} else {
+			if len(tokens) != 2 {
+				return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
+			}
+			hwaddr, err := net.ParseMAC(tokens[0])
+			if err != nil {
+				return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+			}
+			records[hwaddr.String()] = ipaddr
+		}
 	}
 
 	return records, nil
@@ -189,9 +210,33 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
+	subscriberId, ok := func() (string, bool) {
+		optionValue := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
+		// reading https://datatracker.ietf.org/doc/html/rfc3993 easier than the thin abstraction
+		for b := 2; b < len(optionValue); {
+			subOption := int(optionValue[b])
+			length := int(optionValue[b+1])
+			b += 2
+			if b+length > len(optionValue) {
+				log.Warningf("Ignoring malformed suboption %d in Relay Agent Information", subOption)
+				return "", false
+			}
+			if subOption == 6 {
+				return string(optionValue[b : b+length]), true
+			}
+			b += length
+		}
+		return "", false
+	}()
+
+	lookup := subscriberId
 	if !ok {
-		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
+		lookup = req.ClientHWAddr.String()
+	}
+
+	ipaddr, ok := StaticRecords[lookup]
+	if !ok {
+		log.Warningf("No IPv4 found for %s", req.ClientHWAddr.String())
 		return resp, false
 	}
 	resp.YourIPAddr = ipaddr

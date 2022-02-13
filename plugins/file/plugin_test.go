@@ -34,18 +34,28 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		require.NoError(t, err)
 		_, err = tmp.WriteString("# this is a comment\n")
 		require.NoError(t, err)
+		_, err = tmp.WriteString("Subscriber-ID:\"Test subscriber 1\" 192.0.2.110\n")
+		require.NoError(t, err)
+		_, err = tmp.WriteString("Subscriber-ID:\"Test subscriber \\\"2\\\"\" 192.0.2.111\n")
+		require.NoError(t, err)
 
 		records, err := LoadDHCPv4Records(tmp.Name())
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		if assert.Equal(t, 2, len(records)) {
+		if assert.Equal(t, 4, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:55") {
 				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:55"])
 			}
 			if assert.Contains(t, records, "11:22:33:44:55:66") {
 				assert.Equal(t, net.ParseIP("192.0.2.101"), records["11:22:33:44:55:66"])
+			}
+			if assert.Contains(t, records, "Test subscriber 1") {
+				assert.Equal(t, net.ParseIP("192.0.2.110"), records["Test subscriber 1"])
+			}
+			if assert.Contains(t, records, "Test subscriber \"2\"") {
+				assert.Equal(t, net.ParseIP("192.0.2.111"), records["Test subscriber \"2\""])
 			}
 		}
 	})
@@ -61,6 +71,22 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 		// add line with too few fields
 		_, err = tmp.WriteString("foo\n")
+		require.NoError(t, err)
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid end quote", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		require.NoError(t, err)
+		defer func() {
+			tmp.Close()
+			os.Remove(tmp.Name())
+		}()
+
+		// add line with missing end quote on Subscriber-ID
+		_, err = tmp.WriteString("Subscriber-ID:\"Subscriber 3 192.0.2.120\n")
 		require.NoError(t, err)
 		_, err = LoadDHCPv4Records(tmp.Name())
 		assert.Error(t, err)
@@ -246,6 +272,52 @@ func TestHandler4(t *testing.T) {
 		clIPAddr := net.ParseIP("192.0.2.100")
 		StaticRecords = map[string]net.IP{
 			mac: clIPAddr,
+		}
+
+		// if we handle this DHCP request, the YourIPAddr field should be set
+		// in the result
+		result, stop := Handler4(req, resp)
+		assert.Same(t, result, resp)
+		assert.True(t, stop)
+		assert.Equal(t, clIPAddr, result.YourIPAddr)
+
+		// cleanup
+		StaticRecords = make(map[string]net.IP)
+	})
+
+	t.Run("known Subscriber-ID", func(t *testing.T) {
+		// prepare DHCPv4 request
+		mac := "00:11:22:33:44:55"
+		claddr, _ := net.ParseMAC(mac)
+		/*
+			extracted from sample tcpdump:
+
+			Option: (82) Agent Information Option
+				Length: 21
+				Option 82 Suboption: (2) Agent Remote ID
+					Length: 12
+					Agent Remote ID: 020a00000affc60111000000
+				Option 82 Suboption: (6) Subscriber ID
+					Length: 5
+					Subscriber ID: PORT1
+			Option: (255) End
+				Option End: 255
+		*/
+		relayOption := make(dhcpv4.Options)
+		expectedSubscriberId := "PORT1"
+		require.NoError(t, relayOption.FromBytes([]byte("\x52\x15\x02\x0c\x02\x0a\x00\x00\x0a\xff\xc6\x01\x11\x00\x00\x00\x06\x05\x50\x4f\x52\x54\x31\xff")))
+
+		req := &dhcpv4.DHCPv4{
+			ClientHWAddr: claddr,
+			Options:      relayOption,
+		}
+		resp := &dhcpv4.DHCPv4{}
+		assert.Nil(t, resp.ClientIPAddr)
+
+		// add lease for the Subscriber-ID in the lease map
+		clIPAddr := net.ParseIP("192.0.2.100")
+		StaticRecords = map[string]net.IP{
+			expectedSubscriberId: clIPAddr,
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
