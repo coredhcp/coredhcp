@@ -38,24 +38,49 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		require.NoError(t, err)
 		_, err = tmp.WriteString("Subscriber-ID:\"Test subscriber \\\"2\\\"\" 192.0.2.111\n")
 		require.NoError(t, err)
+		_, err = tmp.WriteString("22:33:44:55:66:77 10.10.10.50,255.255.255.0,10.10.10.1\n")
+		require.NoError(t, err)
+		_, err = tmp.WriteString("22:33:44:55:66:78 10.10.10.50,255.255.255.0\n")
+		require.NoError(t, err)
+		_, err = tmp.WriteString("22:33:44:55:66:79 10.10.10.50,0.0.0.0\n") // obscure netmask
+		require.NoError(t, err)
 
 		records, err := LoadDHCPv4Records(tmp.Name())
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		if assert.Equal(t, 4, len(records)) {
+		if assert.Equal(t, 7, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:55") {
-				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:55"])
+				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:55"].ip)
+				assert.Equal(t, net.IPMask(nil), records["00:11:22:33:44:55"].netmask)
+				assert.Equal(t, net.IP(nil), records["00:11:22:33:44:55"].gateway)
 			}
 			if assert.Contains(t, records, "11:22:33:44:55:66") {
-				assert.Equal(t, net.ParseIP("192.0.2.101"), records["11:22:33:44:55:66"])
+				assert.Equal(t, net.ParseIP("192.0.2.101"), records["11:22:33:44:55:66"].ip)
+				assert.Equal(t, net.IPMask(nil), records["11:22:33:44:55:66"].netmask)
+				assert.Equal(t, net.IP(nil), records["11:22:33:44:55:66"].gateway)
 			}
 			if assert.Contains(t, records, "Test subscriber 1") {
-				assert.Equal(t, net.ParseIP("192.0.2.110"), records["Test subscriber 1"])
+				assert.Equal(t, net.ParseIP("192.0.2.110"), records["Test subscriber 1"].ip)
 			}
 			if assert.Contains(t, records, "Test subscriber \"2\"") {
-				assert.Equal(t, net.ParseIP("192.0.2.111"), records["Test subscriber \"2\""])
+				assert.Equal(t, net.ParseIP("192.0.2.111"), records["Test subscriber \"2\""].ip)
+			}
+			if assert.Contains(t, records, "22:33:44:55:66:77") {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:77"].ip)
+				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records["22:33:44:55:66:77"].netmask)
+				assert.Equal(t, net.ParseIP("10.10.10.1"), records["22:33:44:55:66:77"].gateway)
+			}
+			if assert.Contains(t, records, "22:33:44:55:66:78") {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:78"].ip)
+				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records["22:33:44:55:66:78"].netmask)
+				assert.Equal(t, net.IP(nil), records["22:33:44:55:66:78"].gateway)
+			}
+			if assert.Contains(t, records, "22:33:44:55:66:79") {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:79"].ip)
+				assert.Equal(t, net.IPv4Mask(0, 0, 0, 0), records["22:33:44:55:66:79"].netmask)
+				assert.Equal(t, net.IP(nil), records["22:33:44:55:66:79"].gateway)
 			}
 		}
 	})
@@ -124,6 +149,51 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("syntatically correct IPv4 netmask which doesn't have contiguous bits set", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		require.NoError(t, err)
+		defer func() {
+			tmp.Close()
+			os.Remove(tmp.Name())
+		}()
+
+		_, err = tmp.WriteString("22:33:44:55:66:77 10.10.10.100,255.128.255.0\n")
+		require.NoError(t, err)
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+	})
+
+	t.Run("gateway specified, but missing netmask field", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		require.NoError(t, err)
+		defer func() {
+			tmp.Close()
+			os.Remove(tmp.Name())
+		}()
+
+		_, err = tmp.WriteString("22:33:44:55:66:77 10.10.10.100,,10.10.10.1\n")
+		require.NoError(t, err)
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+	})
+
+	t.Run("missing gateway (with comma as if it were intended)", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		require.NoError(t, err)
+		defer func() {
+			tmp.Close()
+			os.Remove(tmp.Name())
+		}()
+
+		_, err = tmp.WriteString("22:33:44:55:66:77 10.10.10.100,255.255.255.0,\n")
+		require.NoError(t, err)
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+	})
+
 	t.Run("lease with IPv6 address", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := ioutil.TempFile("", "test_plugin_file")
@@ -166,10 +236,10 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 		if assert.Equal(t, 2, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:55") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records["00:11:22:33:44:55"])
+				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records["00:11:22:33:44:55"].ip)
 			}
 			if assert.Contains(t, records, "11:22:33:44:55:66") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:2"), records["11:22:33:44:55:66"])
+				assert.Equal(t, net.ParseIP("2001:db8::10:2"), records["11:22:33:44:55:66"].ip)
 			}
 		}
 	})
@@ -270,8 +340,8 @@ func TestHandler4(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]net.IP{
-			mac: clIPAddr,
+		StaticRecords = map[string]ipConfig{
+			mac: ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
@@ -280,9 +350,83 @@ func TestHandler4(t *testing.T) {
 		assert.Same(t, result, resp)
 		assert.True(t, stop)
 		assert.Equal(t, clIPAddr, result.YourIPAddr)
+		assert.Nil(t, net.IP(result.Options.Get(dhcpv4.OptionRouter)))
+		assert.Nil(t, net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)))
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		StaticRecords = make(map[string]ipConfig)
+	})
+
+	t.Run("known, including netmask (but no gateway)", func(t *testing.T) {
+		// prepare DHCPv4 request
+		mac := "00:11:22:33:44:55"
+		claddr, _ := net.ParseMAC(mac)
+		req := &dhcpv4.DHCPv4{
+			ClientHWAddr: claddr,
+		}
+		resp := &dhcpv4.DHCPv4{
+			Options: map[uint8][]byte{},
+		}
+		assert.Nil(t, resp.ClientIPAddr)
+
+		// add lease for the MAC in the lease map
+		clIPAddr := net.ParseIP("192.0.2.100")
+		clNetmask := net.IPv4Mask(255, 255, 255, 0)
+		StaticRecords = map[string]ipConfig{
+			mac: {
+				ip:      clIPAddr,
+				netmask: clNetmask,
+			},
+		}
+
+		// if we handle this DHCP request, the YourIPAddr field should be set
+		// in the result
+		result, stop := Handler4(req, resp)
+		assert.Same(t, result, resp)
+		assert.True(t, stop)
+		assert.Equal(t, clIPAddr, result.YourIPAddr)
+		assert.Nil(t, net.IP(result.Options.Get(dhcpv4.OptionRouter)))
+		assert.Equal(t, clNetmask.String(), net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)).String())
+
+		// cleanup
+		StaticRecords = make(map[string]ipConfig)
+	})
+
+	t.Run("known, including netmask and gateway", func(t *testing.T) {
+		// prepare DHCPv4 request
+		mac := "00:11:22:33:44:55"
+		claddr, _ := net.ParseMAC(mac)
+		req := &dhcpv4.DHCPv4{
+			ClientHWAddr: claddr,
+		}
+		resp := &dhcpv4.DHCPv4{
+			Options: map[uint8][]byte{},
+		}
+		assert.Nil(t, resp.ClientIPAddr)
+
+		// add lease for the MAC in the lease map
+		clIPAddr := net.ParseIP("192.0.2.100")
+		clNetmask := net.IPv4Mask(255, 255, 255, 0)
+		clRouter := net.ParseIP("192.0.2.1")
+		StaticRecords = map[string]ipConfig{
+			mac: {
+				ip:      clIPAddr,
+				netmask: clNetmask,
+				gateway: clRouter,
+			},
+		}
+
+		// if we handle this DHCP request, the YourIPAddr field should be set
+		// in the result
+		result, stop := Handler4(req, resp)
+		assert.Same(t, result, resp)
+		assert.True(t, stop)
+		assert.Equal(t, clIPAddr, result.YourIPAddr)
+		assert.Equal(t, clRouter.String(), net.IP(result.Options.Get(dhcpv4.OptionRouter)).String())
+		assert.Equal(t, clNetmask.String(), net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)).String())
+
+		// cleanup
+		StaticRecords = make(map[string]ipConfig)
 	})
 
 	t.Run("known Subscriber-ID", func(t *testing.T) {
@@ -316,8 +460,9 @@ func TestHandler4(t *testing.T) {
 
 		// add lease for the Subscriber-ID in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]net.IP{
-			expectedSubscriberId: clIPAddr,
+
+		StaticRecords = map[string]ipConfig{
+			expectedSubscriberId: ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
@@ -328,7 +473,7 @@ func TestHandler4(t *testing.T) {
 		assert.Equal(t, clIPAddr, result.YourIPAddr)
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		StaticRecords = make(map[string]ipConfig)
 	})
 }
 
@@ -362,8 +507,9 @@ func TestHandler6(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("2001:db8::10:1")
-		StaticRecords = map[string]net.IP{
-			mac: clIPAddr,
+
+		StaticRecords = map[string]ipConfig{
+			mac: ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, there should be a specific IANA option
@@ -376,7 +522,7 @@ func TestHandler6(t *testing.T) {
 		}
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		StaticRecords = make(map[string]ipConfig)
 	})
 }
 

@@ -137,16 +137,20 @@ server4:
         # The IP address should be one address where this server is reachable
         - server_id: 10.10.10.1
 
-        # file serves leases defined in a static file, matching link-layer addresses to IPs
+        # file serves leases defined in a static file, matching requests to fixed IPs
         # - file: <file name> [autorefresh]
-        # The file format is one lease per line, "<hw address> <IPv4>"
+        # The file format is one lease per line, "<MAC address> <IPv4>"
         # When the 'autorefresh' argument is given, the plugin will try to refresh
         # the lease mapping during runtime whenever the lease file is updated.
         #
-        # Instead of a MAC address in the file you may also specify DHCP Option 82 
+        # Instead of a MAC address, you may also specify DHCP Option 82 
         # "Subscriber-ID" fields, as per RFC3993.  These are specified as:
         # Subcriber-ID:"John Smith" with quotes surrounding the ASCII ID.  The IP
-        # address follows as usual
+        # address follows as usual.
+        #
+        # As well as an IP address, you can also specify an optional netmask, and
+        # an optional gateway as in 192.168.0.50,255.255.255.0,192.168.0.1 - but
+        # you can specify just the IP, or just the IP & netmask if you want.
         - file: "leases.txt"
 
         # dns advertises DNS resolvers usable by the clients on this network

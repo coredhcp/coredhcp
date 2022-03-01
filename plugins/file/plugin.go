@@ -68,26 +68,25 @@ var Plugin = plugins.Plugin{
 
 var recLock sync.RWMutex
 
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
+type ipConfig struct {
+	ip      net.IP
+	netmask net.IPMask // or nil value if undefined
+	gateway net.IP     // or nil value if undefined
+}
 
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+// StaticRecords holds a MAC -> IP address mapping
+var StaticRecords map[string]ipConfig
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
+func LoadDHCPv4Records(filename string) (map[string]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
+	records := make(map[string]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -99,9 +98,36 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 
 		tokens := strings.Fields(line)
 
-		ipaddr := net.ParseIP(tokens[len(tokens)-1])
-		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
+		var config ipConfig
+		{
+			tokens2 := strings.Split(tokens[len(tokens)-1], ",")
+			if len(tokens2) > 0 {
+				config.ip = net.ParseIP(tokens2[0])
+				if config.ip == nil || config.ip.To4() == nil {
+					return nil, fmt.Errorf("not an IPv4 address: %v", tokens2[0])
+				}
+			}
+			if len(tokens2) > 1 {
+				netmaskAsIp := net.ParseIP(tokens2[1])
+				if netmaskAsIp == nil || config.ip.To4() == nil {
+					return nil, fmt.Errorf("not an IPv4 netmask: %v", tokens2[1])
+				}
+				b := []byte(netmaskAsIp)
+				config.netmask = net.IPv4Mask(b[12], b[13], b[14], b[15])
+				if _, bits := config.netmask.Size(); bits == 0 {
+					return nil, fmt.Errorf("not a valid netmask: %v", tokens2[1])
+				}
+				//if netmaskInt != 0 && (((^netmaskInt)+1)&(^netmaskInt)) != 0 {
+				//	// https://stackoverflow.com/a/17401261/126350
+				//	return nil, fmt.Errorf("not a valid netmask: %v", tokens2[1])
+				//}
+			}
+			if len(tokens2) > 2 {
+				config.gateway = net.ParseIP(tokens2[2])
+				if config.gateway == nil || config.ip.To4() == nil {
+					return nil, fmt.Errorf("not an IPv4 address: %v", tokens2[2])
+				}
+			}
 		}
 
 		if strings.HasPrefix(line, "Subscriber-ID:\"") {
@@ -111,7 +137,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 			if lastQuoteIndex == 14 || lastQuoteIndex == -1 {
 				return nil, fmt.Errorf("malformed line, Subscriber-ID not quoted properly (%s)", line)
 			}
-			records[deEscaper.Replace(line[15:lastQuoteIndex])] = ipaddr
+			records[deEscaper.Replace(line[15:lastQuoteIndex])] = config
 		} else {
 			if len(tokens) != 2 {
 				return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
@@ -120,7 +146,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 			if err != nil {
 				return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 			}
-			records[hwaddr.String()] = ipaddr
+			records[hwaddr.String()] = config
 		}
 	}
 
@@ -130,13 +156,13 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
+func LoadDHCPv6Records(filename string) (map[string]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
+	records := make(map[string]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -157,7 +183,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		if ipaddr.To16() == nil || ipaddr.To4() != nil {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
-		records[hwaddr.String()] = ipaddr
+		records[hwaddr.String()] = ipConfig{ip: ipaddr}
 	}
 	return records, nil
 }
@@ -185,18 +211,18 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[mac.String()]
+	config, ok := StaticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Debugf("found IP address %s for MAC %s", config.ip, mac.String())
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
-				IPv6Addr:          ipaddr,
+				IPv6Addr:          config.ip,
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
@@ -234,13 +260,22 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		lookup = req.ClientHWAddr.String()
 	}
 
-	ipaddr, ok := StaticRecords[lookup]
+	config, ok := StaticRecords[lookup]
 	if !ok {
-		log.Warningf("No IPv4 found for %s", req.ClientHWAddr.String())
+		log.Warningf("No IPv4 found for %s", lookup)
 		return resp, false
 	}
-	resp.YourIPAddr = ipaddr
-	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
+	resp.YourIPAddr = config.ip
+
+	if config.gateway != nil {
+		resp.Options.Update(dhcpv4.OptRouter(config.gateway))
+	}
+
+	if config.netmask != nil {
+		resp.Options.Update(dhcpv4.OptSubnetMask(config.netmask))
+	}
+
+	log.Debugf("found IP address %s for %s", config.ip, lookup)
 	return resp, true
 }
 
@@ -305,7 +340,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 func loadFromFile(v6 bool, filename string) error {
 	var err error
-	var records map[string]net.IP
+	var records map[string]ipConfig
 	var protver int
 	if v6 {
 		protver = 6
