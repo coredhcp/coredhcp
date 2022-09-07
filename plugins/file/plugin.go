@@ -68,25 +68,55 @@ var Plugin = plugins.Plugin{
 
 var recLock sync.RWMutex
 
+type lookupType struct {
+	name      string
+	subOption int
+}
+
+type lookupValue struct {
+	t     lookupType
+	value string
+}
+
+func (v lookupValue) String() string {
+	return v.t.name + ":" + v.value
+}
+
+var LookupTypeMAC = lookupType{"MAC", 0}
+
+func LookupMAC(s string) lookupValue { return lookupValue{LookupTypeMAC, s} }
+
+var LookupTypeRemoteID = lookupType{"Remote-ID", 1}
+
+func LookupRemoteID(s string) lookupValue { return lookupValue{LookupTypeRemoteID, s} }
+
+var LookupTypeCircuitID = lookupType{"Circuit-ID", 2}
+
+func LookupCircuitID(s string) lookupValue { return lookupValue{LookupTypeCircuitID, s} }
+
+var LookupTypeSubscriberID = lookupType{"Subscriber-ID", 6}
+
+func LookupSubscriberID(s string) lookupValue { return lookupValue{LookupTypeSubscriberID, s} }
+
 type ipConfig struct {
 	ip      net.IP
 	netmask net.IPMask // or nil value if undefined
 	gateway net.IP     // or nil value if undefined
 }
 
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]ipConfig
+// StaticRecords holds a address mappings of different types
+var StaticRecords map[lookupValue]ipConfig
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]ipConfig, error) {
+func LoadDHCPv4Records(filename string) (map[lookupValue]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]ipConfig)
+	records := make(map[lookupValue]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -137,7 +167,7 @@ func LoadDHCPv4Records(filename string) (map[string]ipConfig, error) {
 			if lastQuoteIndex == 14 || lastQuoteIndex == -1 {
 				return nil, fmt.Errorf("malformed line, Subscriber-ID not quoted properly (%s)", line)
 			}
-			records[deEscaper.Replace(line[15:lastQuoteIndex])] = config
+			records[LookupSubscriberID(deEscaper.Replace(line[15:lastQuoteIndex]))] = config
 		} else {
 			if len(tokens) != 2 {
 				return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
@@ -146,7 +176,7 @@ func LoadDHCPv4Records(filename string) (map[string]ipConfig, error) {
 			if err != nil {
 				return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 			}
-			records[hwaddr.String()] = config
+			records[LookupMAC(hwaddr.String())] = config
 		}
 	}
 
@@ -156,13 +186,13 @@ func LoadDHCPv4Records(filename string) (map[string]ipConfig, error) {
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]ipConfig, error) {
+func LoadDHCPv6Records(filename string) (map[lookupValue]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]ipConfig)
+	records := make(map[lookupValue]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -183,7 +213,7 @@ func LoadDHCPv6Records(filename string) (map[string]ipConfig, error) {
 		if ipaddr.To16() == nil || ipaddr.To4() != nil {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
-		records[hwaddr.String()] = ipConfig{ip: ipaddr}
+		records[LookupMAC(hwaddr.String())] = ipConfig{ip: ipaddr}
 	}
 	return records, nil
 }
@@ -211,7 +241,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	config, ok := StaticRecords[mac.String()]
+	config, ok := StaticRecords[LookupMAC(mac.String())]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
@@ -255,9 +285,9 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		return "", false
 	}()
 
-	lookup := subscriberId
+	lookup := LookupSubscriberID(subscriberId)
 	if !ok {
-		lookup = req.ClientHWAddr.String()
+		lookup = LookupMAC(req.ClientHWAddr.String())
 	}
 
 	config, ok := StaticRecords[lookup]
@@ -340,7 +370,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 func loadFromFile(v6 bool, filename string) error {
 	var err error
-	var records map[string]ipConfig
+	var records map[lookupValue]ipConfig
 	var protver int
 	if v6 {
 		protver = 6

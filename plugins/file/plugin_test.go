@@ -51,36 +51,36 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		}
 
 		if assert.Equal(t, 7, len(records)) {
-			if assert.Contains(t, records, "00:11:22:33:44:55") {
-				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:55"].ip)
-				assert.Equal(t, net.IPMask(nil), records["00:11:22:33:44:55"].netmask)
-				assert.Equal(t, net.IP(nil), records["00:11:22:33:44:55"].gateway)
+			if assert.Contains(t, records, LookupMAC("00:11:22:33:44:55")) {
+				assert.Equal(t, net.ParseIP("192.0.2.100"), records[LookupMAC("00:11:22:33:44:55")].ip)
+				assert.Equal(t, net.IPMask(nil), records[LookupMAC("00:11:22:33:44:55")].netmask)
+				assert.Equal(t, net.IP(nil), records[LookupMAC("00:11:22:33:44:55")].gateway)
 			}
-			if assert.Contains(t, records, "11:22:33:44:55:66") {
-				assert.Equal(t, net.ParseIP("192.0.2.101"), records["11:22:33:44:55:66"].ip)
-				assert.Equal(t, net.IPMask(nil), records["11:22:33:44:55:66"].netmask)
-				assert.Equal(t, net.IP(nil), records["11:22:33:44:55:66"].gateway)
+			if assert.Contains(t, records, LookupMAC("11:22:33:44:55:66")) {
+				assert.Equal(t, net.ParseIP("192.0.2.101"), records[LookupMAC("11:22:33:44:55:66")].ip)
+				assert.Equal(t, net.IPMask(nil), records[LookupMAC("11:22:33:44:55:66")].netmask)
+				assert.Equal(t, net.IP(nil), records[LookupMAC("11:22:33:44:55:66")].gateway)
 			}
-			if assert.Contains(t, records, "Test subscriber 1") {
-				assert.Equal(t, net.ParseIP("192.0.2.110"), records["Test subscriber 1"].ip)
+			if assert.Contains(t, records, LookupSubscriberID("Test subscriber 1")) {
+				assert.Equal(t, net.ParseIP("192.0.2.110"), records[LookupSubscriberID("Test subscriber 1")].ip)
 			}
-			if assert.Contains(t, records, "Test subscriber \"2\"") {
-				assert.Equal(t, net.ParseIP("192.0.2.111"), records["Test subscriber \"2\""].ip)
+			if assert.Contains(t, records, LookupSubscriberID("Test subscriber \"2\"")) {
+				assert.Equal(t, net.ParseIP("192.0.2.111"), records[LookupSubscriberID("Test subscriber \"2\"")].ip)
 			}
-			if assert.Contains(t, records, "22:33:44:55:66:77") {
-				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:77"].ip)
-				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records["22:33:44:55:66:77"].netmask)
-				assert.Equal(t, net.ParseIP("10.10.10.1"), records["22:33:44:55:66:77"].gateway)
+			if assert.Contains(t, records, LookupMAC("22:33:44:55:66:77")) {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records[LookupMAC("22:33:44:55:66:77")].ip)
+				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records[LookupMAC("22:33:44:55:66:77")].netmask)
+				assert.Equal(t, net.ParseIP("10.10.10.1"), records[LookupMAC("22:33:44:55:66:77")].gateway)
 			}
-			if assert.Contains(t, records, "22:33:44:55:66:78") {
-				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:78"].ip)
-				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records["22:33:44:55:66:78"].netmask)
-				assert.Equal(t, net.IP(nil), records["22:33:44:55:66:78"].gateway)
+			if assert.Contains(t, records, LookupMAC("22:33:44:55:66:78")) {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records[LookupMAC("22:33:44:55:66:78")].ip)
+				assert.Equal(t, net.IPv4Mask(255, 255, 255, 0), records[LookupMAC("22:33:44:55:66:78")].netmask)
+				assert.Equal(t, net.IP(nil), records[LookupMAC("22:33:44:55:66:78")].gateway)
 			}
-			if assert.Contains(t, records, "22:33:44:55:66:79") {
-				assert.Equal(t, net.ParseIP("10.10.10.50"), records["22:33:44:55:66:79"].ip)
-				assert.Equal(t, net.IPv4Mask(0, 0, 0, 0), records["22:33:44:55:66:79"].netmask)
-				assert.Equal(t, net.IP(nil), records["22:33:44:55:66:79"].gateway)
+			if assert.Contains(t, records, LookupMAC("22:33:44:55:66:79")) {
+				assert.Equal(t, net.ParseIP("10.10.10.50"), records[LookupMAC("22:33:44:55:66:79")].ip)
+				assert.Equal(t, net.IPv4Mask(0, 0, 0, 0), records[LookupMAC("22:33:44:55:66:79")].netmask)
+				assert.Equal(t, net.IP(nil), records[LookupMAC("22:33:44:55:66:79")].gateway)
 			}
 		}
 	})
@@ -235,11 +235,11 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		}
 
 		if assert.Equal(t, 2, len(records)) {
-			if assert.Contains(t, records, "00:11:22:33:44:55") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records["00:11:22:33:44:55"].ip)
+			if assert.Contains(t, records, LookupMAC("00:11:22:33:44:55")) {
+				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records[LookupMAC("00:11:22:33:44:55")].ip)
 			}
-			if assert.Contains(t, records, "11:22:33:44:55:66") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:2"), records["11:22:33:44:55:66"].ip)
+			if assert.Contains(t, records, LookupMAC("11:22:33:44:55:66")) {
+				assert.Equal(t, net.ParseIP("2001:db8::10:2"), records[LookupMAC("11:22:33:44:55:66")].ip)
 			}
 		}
 	})
@@ -340,8 +340,8 @@ func TestHandler4(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]ipConfig{
-			mac: ipConfig{ip: clIPAddr},
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupMAC(mac): ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
@@ -354,7 +354,7 @@ func TestHandler4(t *testing.T) {
 		assert.Nil(t, net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)))
 
 		// cleanup
-		StaticRecords = make(map[string]ipConfig)
+		StaticRecords = make(map[lookupValue]ipConfig)
 	})
 
 	t.Run("known, including netmask (but no gateway)", func(t *testing.T) {
@@ -372,8 +372,8 @@ func TestHandler4(t *testing.T) {
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
 		clNetmask := net.IPv4Mask(255, 255, 255, 0)
-		StaticRecords = map[string]ipConfig{
-			mac: {
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupMAC(mac): {
 				ip:      clIPAddr,
 				netmask: clNetmask,
 			},
@@ -389,7 +389,7 @@ func TestHandler4(t *testing.T) {
 		assert.Equal(t, clNetmask.String(), net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)).String())
 
 		// cleanup
-		StaticRecords = make(map[string]ipConfig)
+		StaticRecords = make(map[lookupValue]ipConfig)
 	})
 
 	t.Run("known, including netmask and gateway", func(t *testing.T) {
@@ -408,8 +408,8 @@ func TestHandler4(t *testing.T) {
 		clIPAddr := net.ParseIP("192.0.2.100")
 		clNetmask := net.IPv4Mask(255, 255, 255, 0)
 		clRouter := net.ParseIP("192.0.2.1")
-		StaticRecords = map[string]ipConfig{
-			mac: {
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupMAC(mac): {
 				ip:      clIPAddr,
 				netmask: clNetmask,
 				gateway: clRouter,
@@ -426,7 +426,7 @@ func TestHandler4(t *testing.T) {
 		assert.Equal(t, clNetmask.String(), net.IPMask(result.Options.Get(dhcpv4.OptionSubnetMask)).String())
 
 		// cleanup
-		StaticRecords = make(map[string]ipConfig)
+		StaticRecords = make(map[lookupValue]ipConfig)
 	})
 
 	t.Run("known Subscriber-ID", func(t *testing.T) {
@@ -461,8 +461,8 @@ func TestHandler4(t *testing.T) {
 		// add lease for the Subscriber-ID in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
 
-		StaticRecords = map[string]ipConfig{
-			expectedSubscriberId: ipConfig{ip: clIPAddr},
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupSubscriberID(expectedSubscriberId): ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
@@ -473,7 +473,7 @@ func TestHandler4(t *testing.T) {
 		assert.Equal(t, clIPAddr, result.YourIPAddr)
 
 		// cleanup
-		StaticRecords = make(map[string]ipConfig)
+		StaticRecords = make(map[lookupValue]ipConfig)
 	})
 }
 
@@ -508,8 +508,8 @@ func TestHandler6(t *testing.T) {
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("2001:db8::10:1")
 
-		StaticRecords = map[string]ipConfig{
-			mac: ipConfig{ip: clIPAddr},
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupMAC(mac): ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, there should be a specific IANA option
@@ -522,7 +522,7 @@ func TestHandler6(t *testing.T) {
 		}
 
 		// cleanup
-		StaticRecords = make(map[string]ipConfig)
+		StaticRecords = make(map[lookupValue]ipConfig)
 	})
 }
 
