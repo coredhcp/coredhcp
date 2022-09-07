@@ -127,6 +127,16 @@ func setupRange(args ...string) (handler.Handler4, error) {
 
 	log.Printf("Loaded %d DHCPv4 leases from %s", len(p.Recordsv4), filename)
 
+	for _, v := range p.Recordsv4 {
+		ip, err := p.allocator.Allocate(net.IPNet{IP: v.IP})
+		if err != nil {
+			return nil, fmt.Errorf("failed to re-allocate leased ip %v: %v", v.IP.String(), err)
+		}
+		if ip.IP.String() != v.IP.String() {
+			return nil, fmt.Errorf("allocator did not re-allocate requested leased ip %v: %v", v.IP.String(), ip.String())
+		}
+	}
+
 	if err := p.registerBackingFile(filename); err != nil {
 		return nil, fmt.Errorf("could not setup lease storage: %w", err)
 	}
