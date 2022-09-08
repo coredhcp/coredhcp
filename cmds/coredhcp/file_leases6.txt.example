@@ -4,5 +4,5 @@
 #
 00:11:22:33:44:55 2001:2::1
 
-# (IPV6 does not yet support Subscriber-ID and netmask etc. as per IPv4 syntax)
+# (IPV6 does not yet support Subscriber-ID, Circuit-ID, Remote-ID and netmask etc. as per IPv4 syntax)
 

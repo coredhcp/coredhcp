@@ -37,10 +37,12 @@ package file
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -79,24 +81,26 @@ type lookupValue struct {
 }
 
 func (v lookupValue) String() string {
-	return v.t.name + ":" + v.value
+	return fmt.Sprintf("%s:%s (%s)", v.t.name, v.value, hex.EncodeToString([]byte(v.value)))
 }
 
 var LookupTypeMAC = lookupType{"MAC", 0}
 
 func LookupMAC(s string) lookupValue { return lookupValue{LookupTypeMAC, s} }
 
-var LookupTypeRemoteID = lookupType{"Remote-ID", 1}
-
-func LookupRemoteID(s string) lookupValue { return lookupValue{LookupTypeRemoteID, s} }
-
-var LookupTypeCircuitID = lookupType{"Circuit-ID", 2}
+var LookupTypeCircuitID = lookupType{"Circuit-ID", 1}
 
 func LookupCircuitID(s string) lookupValue { return lookupValue{LookupTypeCircuitID, s} }
+
+var LookupTypeRemoteID = lookupType{"Remote-ID", 2}
+
+func LookupRemoteID(s string) lookupValue { return lookupValue{LookupTypeRemoteID, s} }
 
 var LookupTypeSubscriberID = lookupType{"Subscriber-ID", 6}
 
 func LookupSubscriberID(s string) lookupValue { return lookupValue{LookupTypeSubscriberID, s} }
+
+var AllLookupTypes = []lookupType{LookupTypeCircuitID, LookupTypeRemoteID, LookupTypeSubscriberID}
 
 type ipConfig struct {
 	ip      net.IP
@@ -126,58 +130,59 @@ func LoadDHCPv4Records(filename string) (map[lookupValue]ipConfig, error) {
 			continue
 		}
 
-		tokens := strings.Fields(line)
+		var reTypes map[*regexp.Regexp]lookupType = make(map[*regexp.Regexp]lookupType)
+		reTypes[regexp.MustCompile(`\s*(([0-9A-Fa-f]{2}:?){6})`)] = LookupTypeMAC
+		for _, lt := range AllLookupTypes {
+			re := regexp.MustCompile(`\s*` + lt.name + ":" + `"(.*?)"\s+`)
+			reTypes[re] = lt
+		}
+
+		var lookup lookupValue
+		for re, lt := range reTypes {
+			if m := re.FindStringSubmatch(line); m != nil {
+				reBackslash := regexp.MustCompile(`\\(.)`)
+				lookup = lookupValue{lt, reBackslash.ReplaceAllString(m[1], "$1")}
+				line = line[len(m[0]):]
+				goto found
+			}
+		}
+		return nil, fmt.Errorf("couldn't parse line: %s", line)
+	found:
 
 		var config ipConfig
-		{
-			tokens2 := strings.Split(tokens[len(tokens)-1], ",")
-			if len(tokens2) > 0 {
-				config.ip = net.ParseIP(tokens2[0])
-				if config.ip == nil || config.ip.To4() == nil {
-					return nil, fmt.Errorf("not an IPv4 address: %v", tokens2[0])
-				}
+		ipMatches := regexp.MustCompile(`^\s*(\d+\.\d+\.\d+\.\d+)(,\d+\.\d+\.\d+\.\d+)?(,\d+\.\d+\.\d+\.\d+)?\s*$`).FindStringSubmatch(line)
+		if ipMatches == nil {
+			return nil, fmt.Errorf("couldn't parse second half of line: %s", line)
+		}
+
+		config.ip = net.ParseIP(ipMatches[1])
+		if config.ip == nil || config.ip.To4() == nil {
+			return nil, fmt.Errorf("not an IPv4 address: %v", ipMatches[1])
+		}
+
+		if ipMatches[2] != "" {
+			netmaskAsIp := net.ParseIP(ipMatches[2][1:])
+			if netmaskAsIp == nil || netmaskAsIp.To4() == nil {
+				return nil, fmt.Errorf("not an IPv4 netmask: %v", ipMatches[2][1:])
 			}
-			if len(tokens2) > 1 {
-				netmaskAsIp := net.ParseIP(tokens2[1])
-				if netmaskAsIp == nil || config.ip.To4() == nil {
-					return nil, fmt.Errorf("not an IPv4 netmask: %v", tokens2[1])
-				}
-				b := []byte(netmaskAsIp)
-				config.netmask = net.IPv4Mask(b[12], b[13], b[14], b[15])
-				if _, bits := config.netmask.Size(); bits == 0 {
-					return nil, fmt.Errorf("not a valid netmask: %v", tokens2[1])
-				}
-				//if netmaskInt != 0 && (((^netmaskInt)+1)&(^netmaskInt)) != 0 {
-				//	// https://stackoverflow.com/a/17401261/126350
-				//	return nil, fmt.Errorf("not a valid netmask: %v", tokens2[1])
-				//}
-			}
-			if len(tokens2) > 2 {
-				config.gateway = net.ParseIP(tokens2[2])
-				if config.gateway == nil || config.ip.To4() == nil {
-					return nil, fmt.Errorf("not an IPv4 address: %v", tokens2[2])
-				}
+			b := []byte(netmaskAsIp)
+			config.netmask = net.IPv4Mask(b[12], b[13], b[14], b[15])
+			if _, bits := config.netmask.Size(); bits == 0 {
+				return nil, fmt.Errorf("not a valid netmask: %v", ipMatches[2][1:])
 			}
 		}
 
-		if strings.HasPrefix(line, "Subscriber-ID:\"") {
-			// (for now this parser allows unescaped quotes, but that will change)
-			deEscaper := strings.NewReplacer("\\\\", "\\", "\\\"", "\"")
-			lastQuoteIndex := strings.LastIndexAny(line, "\"")
-			if lastQuoteIndex == 14 || lastQuoteIndex == -1 {
-				return nil, fmt.Errorf("malformed line, Subscriber-ID not quoted properly (%s)", line)
+		if ipMatches[3] != "" {
+			if config.netmask == nil {
+				return nil, fmt.Errorf("gateway specified without netmask: %s", line)
 			}
-			records[LookupSubscriberID(deEscaper.Replace(line[15:lastQuoteIndex]))] = config
-		} else {
-			if len(tokens) != 2 {
-				return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
+			config.gateway = net.ParseIP(ipMatches[3][1:])
+			if config.gateway == nil || config.gateway.To4() == nil {
+				return nil, fmt.Errorf("not an IPv4 address: %v", ipMatches[3][1:])
 			}
-			hwaddr, err := net.ParseMAC(tokens[0])
-			if err != nil {
-				return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
-			}
-			records[LookupMAC(hwaddr.String())] = config
 		}
+
+		records[lookup] = config
 	}
 
 	return records, nil
@@ -261,52 +266,52 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	return resp, false
 }
 
+func lookupsFromRequest(req *dhcpv4.DHCPv4) (lookups []lookupValue) {
+	optionValue := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
+	for b := 0; b < len(optionValue); {
+		subOption := int(optionValue[b])
+		length := int(optionValue[b+1])
+
+		b += 2
+		if b+length > len(optionValue) {
+			log.Warningf("Ignoring malformed suboption %d in Relay Agent Information", subOption)
+			break
+		}
+		for _, lt := range AllLookupTypes {
+			if lt.subOption == subOption {
+				lookups = append(lookups, lookupValue{lt, string(optionValue[b : b+length])})
+			}
+		}
+		b += length
+	}
+	lookups = append(lookups, lookupValue{LookupTypeMAC, req.ClientHWAddr.String()})
+	return lookups
+}
+
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	subscriberId, ok := func() (string, bool) {
-		optionValue := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
-		// reading https://datatracker.ietf.org/doc/html/rfc3993 easier than the thin abstraction
-		for b := 2; b < len(optionValue); {
-			subOption := int(optionValue[b])
-			length := int(optionValue[b+1])
-			b += 2
-			if b+length > len(optionValue) {
-				log.Warningf("Ignoring malformed suboption %d in Relay Agent Information", subOption)
-				return "", false
+	for _, lookup := range lookupsFromRequest(req) {
+		config, ok := StaticRecords[lookup]
+		if ok {
+			resp.YourIPAddr = config.ip
+
+			if config.gateway != nil {
+				resp.Options.Update(dhcpv4.OptRouter(config.gateway))
 			}
-			if subOption == 6 {
-				return string(optionValue[b : b+length]), true
+
+			if config.netmask != nil {
+				resp.Options.Update(dhcpv4.OptSubnetMask(config.netmask))
 			}
-			b += length
+
+			log.Debugf("found IP address %s for %s", config.ip, lookup)
+			return resp, true
 		}
-		return "", false
-	}()
-
-	lookup := LookupSubscriberID(subscriberId)
-	if !ok {
-		lookup = LookupMAC(req.ClientHWAddr.String())
 	}
 
-	config, ok := StaticRecords[lookup]
-	if !ok {
-		log.Warningf("No IPv4 found for %s", lookup)
-		return resp, false
-	}
-	resp.YourIPAddr = config.ip
-
-	if config.gateway != nil {
-		resp.Options.Update(dhcpv4.OptRouter(config.gateway))
-	}
-
-	if config.netmask != nil {
-		resp.Options.Update(dhcpv4.OptSubnetMask(config.netmask))
-	}
-
-	log.Debugf("found IP address %s for %s", config.ip, lookup)
-	return resp, true
+	return resp, false
 }
 
 func setup6(args ...string) (handler.Handler6, error) {

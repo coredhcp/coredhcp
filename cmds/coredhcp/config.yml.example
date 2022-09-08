@@ -143,10 +143,10 @@ server4:
         # When the 'autorefresh' argument is given, the plugin will try to refresh
         # the lease mapping during runtime whenever the lease file is updated.
         #
-        # Instead of a MAC address, you may also specify DHCP Option 82 
-        # "Subscriber-ID" fields, as per RFC3993.  These are specified as:
-        # Subcriber-ID:"John Smith" with quotes surrounding the ASCII ID.  The IP
-        # address follows as usual.
+        # Instead of a MAC address, you may also specify DHCP Option 82
+        # fields Subscriber-ID, Circuit-ID or Remote-ID, as per RFC3046 and RFC3993.
+        # These are specified as e.g. Subcriber-ID:"John Smith" with quotes surrounding
+        # the ASCII ID.  The IP address follows as usual.
         #
         # As well as an IP address, you can also specify an optional netmask, and
         # an optional gateway as in 192.168.0.50,255.255.255.0,192.168.0.1 - but

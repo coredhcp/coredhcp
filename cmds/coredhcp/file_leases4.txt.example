@@ -13,3 +13,8 @@ Subscriber-ID:"Lillian's line" 192.168.0.135
 # Requests from this Subscriber-ID will get this IP address & netmask (gateway will come from global config)
 Subscriber-ID:"Lukas' line" 192.168.0.135,255.255.255.0
 
+# Requests from this Circuit-ID will get this IP address & netmask (gateway will come from global config)
+Circuit-ID:"circuit1" 192.168.0.136,255.255.255.0
+
+# Requests from this Remote-ID will get this IP address & netmask (gateway will come from global config)
+Remote-ID:"xyz1023" 192.168.0.136,255.255.255.0
