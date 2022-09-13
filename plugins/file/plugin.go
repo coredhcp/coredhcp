@@ -279,7 +279,13 @@ func lookupsFromRequest(req *dhcpv4.DHCPv4) (lookups []lookupValue) {
 		}
 		for _, lt := range AllLookupTypes {
 			if lt.subOption == subOption {
-				lookups = append(lookups, lookupValue{lt, string(optionValue[b : b+length])})
+				subOptionValue := optionValue[b : b+length]
+				if length > 3 && subOptionValue[0] == 1 && int(subOptionValue[b+1]) == length-2 {
+					// https://community.cisco.com/t5/switching/remote-id-suboption-in-dhcp-option-82/td-p/1879918
+					// Assume Cisco format
+					subOptionValue = subOptionValue[2:]
+				}
+				lookups = append(lookups, lookupValue{lt, string(subOptionValue)})
 			}
 		}
 		b += length
