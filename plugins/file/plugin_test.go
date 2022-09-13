@@ -468,7 +468,7 @@ func TestHandler4(t *testing.T) {
 		Option: (255) End
 			Option End: 255
 	*/
-	testPacket := []byte("\x52\x15\x02\x0c\x02\x0a\x00\x00\x0a\xff\xc6\x01\x11\x00\x00\x00\x06\x05\x50\x4f\x52\x54\x31\xff")
+	testPacket1 := []byte("\x52\x15\x02\x0c\x02\x0a\x00\x00\x0a\xff\xc6\x01\x11\x00\x00\x00\x06\x05\x50\x4f\x52\x54\x31\xff")
 
 	t.Run("known Subscriber-ID", func(t *testing.T) {
 		// prepare DHCPv4 request
@@ -476,7 +476,7 @@ func TestHandler4(t *testing.T) {
 		claddr, _ := net.ParseMAC(mac)
 		relayOption := make(dhcpv4.Options)
 		expectedSubscriberId := "PORT1"
-		require.NoError(t, relayOption.FromBytes(testPacket))
+		require.NoError(t, relayOption.FromBytes(testPacket1))
 
 		req := &dhcpv4.DHCPv4{
 			ClientHWAddr: claddr,
@@ -509,7 +509,7 @@ func TestHandler4(t *testing.T) {
 		claddr, _ := net.ParseMAC(mac)
 		relayOption := make(dhcpv4.Options)
 		expectedRemoteId := "\x02\x0a\x00\x00\x0a\xff\xc6\x01\x11\x00\x00\x00"
-		require.NoError(t, relayOption.FromBytes(testPacket))
+		require.NoError(t, relayOption.FromBytes(testPacket1))
 
 		req := &dhcpv4.DHCPv4{
 			ClientHWAddr: claddr,
@@ -523,6 +523,41 @@ func TestHandler4(t *testing.T) {
 
 		StaticRecords = map[lookupValue]ipConfig{
 			LookupRemoteID(expectedRemoteId): ipConfig{ip: clIPAddr},
+		}
+
+		// if we handle this DHCP request, the YourIPAddr field should be set
+		// in the result
+		result, stop := Handler4(req, resp)
+		assert.Same(t, result, resp)
+		assert.True(t, stop)
+		assert.Equal(t, clIPAddr, result.YourIPAddr)
+
+		// cleanup
+		StaticRecords = make(map[lookupValue]ipConfig)
+	})
+
+	testPacket2 := []byte("\x52\x11\x01\x07\x01\x05\x4e\x65\x78\x75\x73\x02\x06\x88\xf0\x31\xa4\x46\xc1\xff")
+
+	t.Run("Known Circuit-ID", func(t *testing.T) {
+		// prepare DHCPv4 request
+		mac := "00:11:22:33:44:55"
+		claddr, _ := net.ParseMAC(mac)
+		relayOption := make(dhcpv4.Options)
+		expectedCircuitId := "Nexus"
+		require.NoError(t, relayOption.FromBytes(testPacket2))
+
+		req := &dhcpv4.DHCPv4{
+			ClientHWAddr: claddr,
+			Options:      relayOption,
+		}
+		resp := &dhcpv4.DHCPv4{}
+		assert.Nil(t, resp.ClientIPAddr)
+
+		// add lease for the Remote-ID in the lease map
+		clIPAddr := net.ParseIP("192.0.2.100")
+
+		StaticRecords = map[lookupValue]ipConfig{
+			LookupCircuitID(expectedCircuitId): ipConfig{ip: clIPAddr},
 		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
