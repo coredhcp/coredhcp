@@ -21,9 +21,9 @@ func TestAddServer4(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mtu = 1500
+	pState := &pluginState{mtu: 1500}
 
-	resp, stop := Handler4(req, stub)
+	resp, stop := pState.Handler4(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}
@@ -35,8 +35,8 @@ func TestAddServer4(t *testing.T) {
 		t.Errorf("Failed to retrieve mtu from response")
 	}
 
-	if mtu != int(rMTU) {
-		t.Errorf("Found %d mtu, expected %d", rMTU, mtu)
+	if pState.mtu != int(rMTU) {
+		t.Errorf("Found %d mtu, expected %d", rMTU, pState.mtu)
 	}
 }
 
@@ -50,10 +50,10 @@ func TestNotRequested4(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mtu = 1500
+	pState := &pluginState{mtu: 1500}
 	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
 
-	resp, stop := Handler4(req, stub)
+	resp, stop := pState.Handler4(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}

@@ -66,7 +66,7 @@ func setupPrefix(args ...string) (handler.Handler6, error) {
 		return nil, fmt.Errorf("Could not initialize prefix allocator: %v", err)
 	}
 
-	return (&Handler{
+	return (&PluginState{
 		Records:   make(map[string][]lease),
 		allocator: alloc,
 	}).Handle, nil
@@ -77,8 +77,8 @@ type lease struct {
 	Expire time.Time
 }
 
-// Handler holds state of allocations for the plugin
-type Handler struct {
+// PluginState holds state of allocations for the plugin
+type PluginState struct {
 	// Mutex here is the simplest implementation fit for purpose.
 	// We can revisit for perf when we move lease management to separate plugins
 	sync.Mutex
@@ -103,7 +103,7 @@ func recordKey(d *dhcpv6.Duid) string {
 }
 
 // Handle processes DHCPv6 packets for the prefix plugin for a given allocator/leaseset
-func (h *Handler) Handle(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (h *PluginState) Handle(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	msg, err := req.GetInnerMessage()
 	if err != nil {
 		log.Error(err)

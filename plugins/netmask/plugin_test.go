@@ -25,7 +25,7 @@ func TestCheckValidNetmask(t *testing.T) {
 
 func TestHandler4(t *testing.T) {
 	// set plugin netmask
-	netmask = net.IPv4Mask(255, 255, 255, 0)
+	pState := &pluginState{netmask: net.IPv4Mask(255, 255, 255, 0)}
 
 	// prepare DHCPv4 request
 	req := &dhcpv4.DHCPv4{}
@@ -35,17 +35,26 @@ func TestHandler4(t *testing.T) {
 
 	// if we handle this DHCP request, the netmask should be one of the options
 	// of the result
-	result, stop := Handler4(req, resp)
+	result, stop := pState.Handler4(req, resp)
 	assert.Same(t, result, resp)
 	assert.False(t, stop)
-	assert.EqualValues(t, netmask, resp.Options.Get(dhcpv4.OptionSubnetMask))
+	assert.EqualValues(t, pState.netmask, resp.Options.Get(dhcpv4.OptionSubnetMask))
 }
 
 func TestSetup4(t *testing.T) {
 	// valid configuration
-	_, err := setup4("255.255.255.0")
-	assert.NoError(t, err)
-	assert.EqualValues(t, netmask, net.IPv4Mask(255, 255, 255, 0))
+	handler, err := setup4("255.255.255.0")
+
+	// prepare DHCPv4 request
+	req := &dhcpv4.DHCPv4{}
+	resp := &dhcpv4.DHCPv4{
+		Options: dhcpv4.Options{},
+	}
+
+	result, stop := handler(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
+	assert.EqualValues(t, resp.Options.Get(dhcpv4.OptionSubnetMask), net.IPv4Mask(255, 255, 255, 0))
 
 	// no configuration
 	_, err = setup4()

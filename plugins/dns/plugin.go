@@ -24,24 +24,24 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var (
-	dnsServers6 []net.IP
-	dnsServers4 []net.IP
-)
+type pluginState struct {
+	dnsServers []net.IP
+}
 
 func setup6(args ...string) (handler.Handler6, error) {
+	pState := &pluginState{}
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
 	}
 	for _, arg := range args {
 		server := net.ParseIP(arg)
 		if server.To16() == nil {
-			return Handler6, errors.New("expected an DNS server address, got: " + arg)
+			return pState.Handler6, errors.New("expected an DNS server address, got: " + arg)
 		}
-		dnsServers6 = append(dnsServers6, server)
+		pState.dnsServers = append(pState.dnsServers, server)
 	}
-	log.Infof("loaded %d DNS servers.", len(dnsServers6))
-	return Handler6, nil
+	log.Infof("loaded %d DNS servers.", len(pState.dnsServers))
+	return pState.Handler6, nil
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
@@ -49,19 +49,20 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if len(args) < 1 {
 		return nil, errors.New("need at least one DNS server")
 	}
+	pState := &pluginState{}
 	for _, arg := range args {
 		DNSServer := net.ParseIP(arg)
 		if DNSServer.To4() == nil {
-			return Handler4, errors.New("expected an DNS server address, got: " + arg)
+			return pState.Handler4, errors.New("expected an DNS server address, got: " + arg)
 		}
-		dnsServers4 = append(dnsServers4, DNSServer)
+		pState.dnsServers = append(pState.dnsServers, DNSServer)
 	}
-	log.Infof("loaded %d DNS servers.", len(dnsServers4))
-	return Handler4, nil
+	log.Infof("loaded %d DNS servers.", len(pState.dnsServers))
+	return pState.Handler4, nil
 }
 
 // Handler6 handles DHCPv6 packets for the dns plugin
-func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (p *pluginState) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	decap, err := req.GetInnerMessage()
 	if err != nil {
 		log.Errorf("Could not decapsulate relayed message, aborting: %v", err)
@@ -69,15 +70,15 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 
 	if decap.IsOptionRequested(dhcpv6.OptionDNSRecursiveNameServer) {
-		resp.UpdateOption(dhcpv6.OptDNS(dnsServers6...))
+		resp.UpdateOption(dhcpv6.OptDNS(p.dnsServers...))
 	}
 	return resp, false
 }
 
 //Handler4 handles DHCPv4 packets for the dns plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.IsOptionRequested(dhcpv4.OptionDomainNameServer) {
-		resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
+		resp.Options.Update(dhcpv4.OptDNS(p.dnsServers...))
 	}
 	return resp, false
 }

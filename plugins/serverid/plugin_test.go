@@ -23,7 +23,7 @@ func TestRejectBadServerIDV6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v6ServerID = makeTestDUID("0000000000000000")
+	pState := pluginStateV6{v6ServerID: makeTestDUID("0000000000000000")}
 
 	req.MessageType = dhcpv6.MessageTypeRenew
 	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
@@ -34,7 +34,7 @@ func TestRejectBadServerIDV6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, stop := Handler6(req, stub)
+	resp, stop := pState.Handler6(req, stub)
 	if resp != nil {
 		t.Error("server_id is sending a response message to a request with mismatched ServerID")
 	}
@@ -48,7 +48,7 @@ func TestRejectUnexpectedServerIDV6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v6ServerID = makeTestDUID("0000000000000000")
+	pState := pluginStateV6{v6ServerID: makeTestDUID("0000000000000000")}
 
 	req.MessageType = dhcpv6.MessageTypeSolicit
 	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
@@ -59,7 +59,7 @@ func TestRejectUnexpectedServerIDV6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, stop := Handler6(req, stub)
+	resp, stop := pState.Handler6(req, stub)
 	if resp != nil {
 		t.Error("server_id is sending a response message to a solicit with a ServerID")
 	}
@@ -73,7 +73,7 @@ func TestAddServerIDV6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v6ServerID = makeTestDUID("0000000000000000")
+	pState := pluginStateV6{v6ServerID: makeTestDUID("0000000000000000")}
 
 	req.MessageType = dhcpv6.MessageTypeRebind
 	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
@@ -83,15 +83,15 @@ func TestAddServerIDV6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, _ := Handler6(req, stub)
+	resp, _ := pState.Handler6(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return an answer")
 	}
 
 	if opt := resp.(*dhcpv6.Message).Options.ServerID(); opt == nil {
 		t.Fatal("plugin did not add a ServerID option")
-	} else if !opt.Equal(*v6ServerID) {
-		t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, opt)
+	} else if !opt.Equal(*pState.v6ServerID) {
+		t.Fatalf("Got unexpected DUID: expected %v, got %v", pState.v6ServerID, opt)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestRejectInnerMessageServerID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v6ServerID = makeTestDUID("0000000000000000")
+	pState := pluginStateV6{v6ServerID: makeTestDUID("0000000000000000")}
 
 	req.MessageType = dhcpv6.MessageTypeSolicit
 	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
@@ -116,7 +116,7 @@ func TestRejectInnerMessageServerID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, stop := Handler6(relayedRequest, stub)
+	resp, stop := pState.Handler6(relayedRequest, stub)
 	if resp != nil {
 		t.Error("server_id is sending a response message to a relayed solicit with a ServerID")
 	}

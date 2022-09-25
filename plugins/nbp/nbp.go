@@ -49,10 +49,13 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var (
+type pluginStateV6 struct {
 	opt59, opt60 dhcpv6.Option
+}
+
+type pluginStateV4 struct {
 	opt66, opt67 *dhcpv4.Option
-)
+}
 
 func parseArgs(args ...string) (*url.URL, error) {
 	if len(args) != 1 {
@@ -66,6 +69,7 @@ func setup6(args ...string) (handler.Handler6, error) {
 	if err != nil {
 		return nil, err
 	}
+	var opt59, opt60 dhcpv6.Option
 	opt59 = dhcpv6.OptBootFileURL(u.String())
 	params := u.Query().Get("params")
 	if params != "" {
@@ -74,8 +78,12 @@ func setup6(args ...string) (handler.Handler6, error) {
 			OptionData: []byte(params),
 		}
 	}
+	pState := &pluginStateV6{
+		opt59: opt59,
+		opt60: opt60,
+	}
 	log.Printf("loaded NBP plugin for DHCPv6.")
-	return nbpHandler6, nil
+	return pState.Handler6, nil
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
@@ -91,16 +99,17 @@ func setup4(args ...string) (handler.Handler4, error) {
 	default:
 		otsn = dhcpv4.OptTFTPServerName(u.Host)
 		obfn = dhcpv4.OptBootFileName(u.Path)
-		opt66 = &otsn
 	}
-
-	opt67 = &obfn
+	pState := &pluginStateV4{
+		opt67: &obfn,
+		opt66: &otsn,
+	}
 	log.Printf("loaded NBP plugin for DHCPv4.")
-	return nbpHandler4, nil
+	return pState.Handler4, nil
 }
 
-func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
-	if opt59 == nil {
+func (p pluginStateV6) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+	if p.opt59 == nil {
 		// nothing to do
 		return resp, true
 	}
@@ -113,30 +122,30 @@ func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	for _, code := range decap.Options.RequestedOptions() {
 		if code == dhcpv6.OptionBootfileURL {
 			// bootfile URL is requested
-			resp.AddOption(opt59)
+			resp.AddOption(p.opt59)
 		} else if code == dhcpv6.OptionBootfileParam {
 			// optionally add opt60, bootfile params, if requested
-			if opt60 != nil {
-				resp.AddOption(opt60)
+			if p.opt60 != nil {
+				resp.AddOption(p.opt60)
 			}
 		}
 	}
-	log.Debugf("Added NBP %s to request", opt59)
+	log.Debugf("Added NBP %s to request", p.opt59)
 	return resp, true
 }
 
-func nbpHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	if opt67 == nil {
+func (p pluginStateV4) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	if p.opt67 == nil {
 		// nothing to do
 		return resp, true
 	}
-	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && opt66 != nil {
-		resp.Options.Update(*opt66)
-		log.Debugf("Added NBP %s / %s to request", opt66, opt67)
+	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && p.opt66 != nil {
+		resp.Options.Update(*(p.opt66))
+		log.Debugf("Added NBP %s / %s to request", p.opt66, p.opt67)
 	}
 	if req.IsOptionRequested(dhcpv4.OptionBootfileName) {
-		resp.Options.Update(*opt67)
-		log.Debugf("Added NBP %s to request", opt67)
+		resp.Options.Update(*p.opt67)
+		log.Debugf("Added NBP %s to request", p.opt67)
 	}
 	return resp, true
 }

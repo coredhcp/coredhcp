@@ -38,8 +38,9 @@ var Plugin = plugins.Plugin{
 // Note that DHCPv4 and DHCPv6 options are totally independent.
 // If you need the same settings for both, you'll need to configure
 // this plugin once for the v4 and once for the v6 server.
-var v4SearchList []string
-var v6SearchList []string
+type pluginState struct {
+	searchList []string
+}
 
 // copySlice creates a new copy of a string slice in memory.
 // This helps to ensure that downstream plugins can't corrupt
@@ -51,27 +52,29 @@ func copySlice(original []string) []string {
 }
 
 func setup6(args ...string) (handler.Handler6, error) {
-	v6SearchList = args
-	log.Printf("Registered domain search list (DHCPv6) %s", v6SearchList)
-	return domainSearchListHandler6, nil
+	log.Printf("Registered domain search list (DHCPv6) %s", args)
+	return (&pluginState{
+		searchList: args,
+	}).Handler6, nil
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
-	v4SearchList = args
-	log.Printf("Registered domain search list (DHCPv4) %s", v4SearchList)
-	return domainSearchListHandler4, nil
+	log.Printf("Registered domain search list (DHCPv4) %s", args)
+	return (&pluginState{
+		searchList: args,
+	}).Handler4, nil
 }
 
-func domainSearchListHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (p pluginState) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	resp.UpdateOption(dhcpv6.OptDomainSearchList(&rfc1035label.Labels{
-		Labels: copySlice(v6SearchList),
+		Labels: copySlice(p.searchList),
 	}))
 	return resp, false
 }
 
-func domainSearchListHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func (p pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.UpdateOption(dhcpv4.OptDomainSearch(&rfc1035label.Labels{
-		Labels: copySlice(v4SearchList),
+		Labels: copySlice(p.searchList),
 	}))
 	return resp, false
 }

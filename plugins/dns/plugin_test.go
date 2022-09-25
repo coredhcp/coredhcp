@@ -25,13 +25,14 @@ func TestAddServer6(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub.MessageType = dhcpv6.MessageTypeReply
-
-	dnsServers6 = []net.IP{
-		net.ParseIP("2001:db8::1"),
-		net.ParseIP("2001:db8::3"),
+	pState6 := &PluginState{
+		dnsServers: []net.IP{
+			net.ParseIP("2001:db8::1"),
+			net.ParseIP("2001:db8::3"),
+		},
 	}
 
-	resp, stop := Handler6(req, stub)
+	resp, stop := pState6.Handler6(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}
@@ -46,12 +47,12 @@ func TestAddServer6(t *testing.T) {
 	foundServers := resp.(*dhcpv6.Message).Options.DNS()
 	// XXX: is enforcing the order relevant here ?
 	for i, srv := range foundServers {
-		if !srv.Equal(dnsServers6[i]) {
-			t.Errorf("Found server %s, expected %s", srv, dnsServers6[i])
+		if !srv.Equal(pState6.dnsServers[i]) {
+			t.Errorf("Found server %s, expected %s", srv, pState6.dnsServers[i])
 		}
 	}
-	if len(foundServers) != len(dnsServers6) {
-		t.Errorf("Found %d servers, expected %d", len(foundServers), len(dnsServers6))
+	if len(foundServers) != len(pState6.dnsServers) {
+		t.Errorf("Found %d servers, expected %d", len(foundServers), len(pState6.dnsServers))
 	}
 }
 
@@ -68,12 +69,13 @@ func TestNotRequested6(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub.MessageType = dhcpv6.MessageTypeReply
-
-	dnsServers6 = []net.IP{
-		net.ParseIP("2001:db8::1"),
+	pState6 := &PluginState{
+		dnsServers: []net.IP{
+			net.ParseIP("2001:db8::1"),
+		},
 	}
 
-	resp, stop := Handler6(req, stub)
+	resp, stop := pState6.Handler6(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}
@@ -96,13 +98,14 @@ func TestAddServer4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	dnsServers4 = []net.IP{
-		net.ParseIP("192.0.2.1"),
-		net.ParseIP("192.0.2.3"),
+	pState4 := &PluginState{
+		dnsServers: []net.IP{
+			net.ParseIP("192.0.2.1"),
+			net.ParseIP("192.0.2.3"),
+		},
 	}
 
-	resp, stop := Handler4(req, stub)
+	resp, stop := pState4.Handler4(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}
@@ -111,12 +114,12 @@ func TestAddServer4(t *testing.T) {
 	}
 	servers := resp.DNS()
 	for i, srv := range servers {
-		if !srv.Equal(dnsServers4[i]) {
-			t.Errorf("Found server %s, expected %s", srv, dnsServers4[i])
+		if !srv.Equal(pState4.dnsServers[i]) {
+			t.Errorf("Found server %s, expected %s", srv, pState4.dnsServers[i])
 		}
 	}
-	if len(servers) != len(dnsServers4) {
-		t.Errorf("Found %d servers, expected %d", len(servers), len(dnsServers4))
+	if len(servers) != len(pState4.dnsServers) {
+		t.Errorf("Found %d servers, expected %d", len(servers), len(pState4.dnsServers))
 	}
 }
 
@@ -129,13 +132,14 @@ func TestNotRequested4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	dnsServers4 = []net.IP{
-		net.ParseIP("192.0.2.1"),
+	pState4 := &PluginState{
+		dnsServers: []net.IP{
+			net.ParseIP("192.0.2.1"),
+		},
 	}
 	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
 
-	resp, stop := Handler4(req, stub)
+	resp, stop := pState4.Handler4(req, stub)
 	if resp == nil {
 		t.Fatal("plugin did not return a message")
 	}
