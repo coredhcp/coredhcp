@@ -35,7 +35,9 @@ func TestSetup4(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Equal(t, "expected a gateway address, got: foo", err.Error())
 	}
+}
 
+func TestHandler4(t *testing.T) {
 	// prepare DHCPv4 request
 	req := &dhcpv4.DHCPv4{}
 	resp := &dhcpv4.DHCPv4{
@@ -43,11 +45,11 @@ func TestSetup4(t *testing.T) {
 	}
 
 	// valid route
-	handler, err := setup4("10.0.0.0/8,192.168.1.1")
-	result, stop := handler(req, resp)
+	handler4, err := setup4("10.0.0.0/8,192.168.1.1")
+	result, stop := handler4(req, resp)
 	assert.Same(t, result, resp)
 	assert.False(t, stop)
-	table := result.Options.Get(dhcpv4.OptionStaticRoutingTable)
+	table := result.Options.Get(dhcpv4.OptionClasslessStaticRoute)
 	routes := dhcpv4.Routes{}
 	if err := routes.FromBytes(table); err != nil {
 		t.Errorf("FromBytes(%v) Unexpected error state: %v", table, err)
@@ -63,11 +65,11 @@ func TestSetup4(t *testing.T) {
 	resp.Options = dhcpv4.Options{}
 
 	// multiple valid routes
-	handler, err = setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
-	result, stop = handler(req, resp)
+	handler4, err = setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
+	result, stop = handler4(req, resp)
 	assert.Same(t, result, resp)
 	assert.False(t, stop)
-	table = result.Options.Get(dhcpv4.OptionStaticRoutingTable)
+	table = result.Options.Get(dhcpv4.OptionClasslessStaticRoute)
 	routes = dhcpv4.Routes{}
 	if err = routes.FromBytes(table); err != nil {
 		t.Errorf("FromBytes(%v) Unexpected error state: %v", table, err)

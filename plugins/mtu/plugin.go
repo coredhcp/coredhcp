@@ -7,12 +7,12 @@ package mtu
 import (
 	"errors"
 	"fmt"
-	"github.com/insomniacslk/dhcp/dhcpv4"
 	"strconv"
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
+	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
 var log = logger.GetLogger("plugins/mtu")
@@ -42,7 +42,7 @@ func setup4(args ...string) (handler.Handler4, error) {
 }
 
 // Handler4 handles DHCPv4 packets for the mtu plugin
-func (p pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.IsOptionRequested(dhcpv4.OptionInterfaceMTU) {
 		resp.Options.Update(dhcpv4.Option{Code: dhcpv4.OptionInterfaceMTU, Value: dhcpv4.Uint16(p.mtu)})
 	}

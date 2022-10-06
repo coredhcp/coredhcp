@@ -29,7 +29,7 @@ type pluginState struct {
 
 func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
-	pState := &pluginState{routes: []*dhcpv4.Route{}}
+	pState := &pluginState{routes: make(dhcpv4.Routes, 0)}
 
 	if len(args) < 1 {
 		return nil, errors.New("need at least one static route")

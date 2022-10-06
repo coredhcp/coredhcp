@@ -23,11 +23,11 @@ var log = logger.GetLogger("plugins/searchdomains")
 // plugins section. For searchdomains:
 //
 // server6:
-//   listen: '[::]547'
-//   - searchdomains: domain.a domain.b
-//   - server_id: LL aa:bb:cc:dd:ee:ff
-//   - file: "leases.txt"
 //
+//	listen: '[::]547'
+//	- searchdomains: domain.a domain.b
+//	- server_id: LL aa:bb:cc:dd:ee:ff
+//	- file: "leases.txt"
 var Plugin = plugins.Plugin{
 	Name:   "searchdomains",
 	Setup6: setup6,
@@ -65,14 +65,14 @@ func setup4(args ...string) (handler.Handler4, error) {
 	}).Handler4, nil
 }
 
-func (p pluginState) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (p *pluginState) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	resp.UpdateOption(dhcpv6.OptDomainSearchList(&rfc1035label.Labels{
 		Labels: copySlice(p.searchList),
 	}))
 	return resp, false
 }
 
-func (p pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.UpdateOption(dhcpv4.OptDomainSearch(&rfc1035label.Labels{
 		Labels: copySlice(p.searchList),
 	}))

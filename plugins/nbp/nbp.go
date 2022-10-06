@@ -91,7 +91,7 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	pState := &pluginStateV4{}
 	var otsn, obfn dhcpv4.Option
 	switch u.Scheme {
 	case "http", "https", "ftp":
@@ -99,11 +99,10 @@ func setup4(args ...string) (handler.Handler4, error) {
 	default:
 		otsn = dhcpv4.OptTFTPServerName(u.Host)
 		obfn = dhcpv4.OptBootFileName(u.Path)
+		pState.opt66 = &otsn
 	}
-	pState := &pluginStateV4{
-		opt67: &obfn,
-		opt66: &otsn,
-	}
+
+	pState.opt67 = &obfn
 	log.Printf("loaded NBP plugin for DHCPv4.")
 	return pState.Handler4, nil
 }
@@ -140,7 +139,7 @@ func (p pluginStateV4) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool)
 		return resp, true
 	}
 	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && p.opt66 != nil {
-		resp.Options.Update(*(p.opt66))
+		resp.Options.Update(*p.opt66)
 		log.Debugf("Added NBP %s / %s to request", p.opt66, p.opt67)
 	}
 	if req.IsOptionRequested(dhcpv4.OptionBootfileName) {

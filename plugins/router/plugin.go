@@ -6,11 +6,12 @@ package router
 
 import (
 	"errors"
+	"net"
+
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"net"
 )
 
 var log = logger.GetLogger("plugins/router")
@@ -42,8 +43,8 @@ func setup4(args ...string) (handler.Handler4, error) {
 	return pState.Handler4, nil
 }
 
-//Handler4 handles DHCPv4 packets for the router plugin
-func (p pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+// Handler4 handles DHCPv4 packets for the router plugin
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptRouter(p.routers...))
 	return resp, false
 }

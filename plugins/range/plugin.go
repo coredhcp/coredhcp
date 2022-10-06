@@ -26,7 +26,7 @@ var log = logger.GetLogger("plugins/range")
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
 	Name:   "range",
-	Setup4: setupRange,
+	Setup4: setup4,
 }
 
 //Record holds an IP lease record
@@ -35,8 +35,8 @@ type Record struct {
 	expires time.Time
 }
 
-// PluginState is the data held by an instance of the range plugin
-type PluginState struct {
+// pluginState is the data held by an instance of the range plugin
+type pluginState struct {
 	// Rough lock for the whole plugin, we'll get better performance once we use leasestorage
 	sync.Mutex
 	// Recordsv4 holds a MAC -> IP address and lease time mapping
@@ -47,7 +47,7 @@ type PluginState struct {
 }
 
 // Handler4 handles DHCPv4 packets for the range plugin
-func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	p.Lock()
 	defer p.Unlock()
 	record, ok := p.Recordsv4[req.ClientHWAddr.String()]
@@ -63,7 +63,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 			IP:      ip.IP.To4(),
 			expires: time.Now().Add(p.LeaseTime),
 		}
-		err = p.saveIPAddress(req.ClientHWAddr, &rec)
+		err = saveIPAddress(p.leasefile, req.ClientHWAddr, &rec)
 		if err != nil {
 			log.Errorf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
 		}
@@ -73,7 +73,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		if record.expires.Before(time.Now().Add(p.LeaseTime)) {
 			record.expires = time.Now().Add(p.LeaseTime).Round(time.Second)
-			err := p.saveIPAddress(req.ClientHWAddr, record)
+			err := saveIPAddress(p.leasefile, req.ClientHWAddr, record)
 			if err != nil {
 				log.Errorf("Could not persist lease for MAC %s: %v", req.ClientHWAddr.String(), err)
 			}
@@ -85,10 +85,10 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	return resp, false
 }
 
-func setupRange(args ...string) (handler.Handler4, error) {
+func setup4(args ...string) (handler.Handler4, error) {
 	var (
 		err error
-		p   PluginState
+		p   pluginState
 	)
 
 	if len(args) < 4 {
@@ -137,7 +137,7 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		}
 	}
 
-	if err := p.registerBackingFile(filename); err != nil {
+	if err := registerBackingFile(&p.leasefile, filename); err != nil {
 		return nil, fmt.Errorf("could not setup lease storage: %w", err)
 	}
 
