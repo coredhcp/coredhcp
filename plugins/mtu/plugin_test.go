@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAddServer4(t *testing.T) {
@@ -16,27 +17,26 @@ func TestAddServer4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub, err := dhcpv4.NewReplyFromRequest(req)
+	resp, err := dhcpv4.NewReplyFromRequest(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mtu = 1500
+	handler4, err := setup4("1500")
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
 
-	resp, stop := Handler4(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
-	}
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
-	rMTU, err := dhcpv4.GetUint16(dhcpv4.OptionInterfaceMTU, resp.Options)
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
+	rMTU, err := dhcpv4.GetUint16(dhcpv4.OptionInterfaceMTU, result.Options)
 	if err != nil {
 		t.Errorf("Failed to retrieve mtu from response")
 	}
 
-	if mtu != int(rMTU) {
-		t.Errorf("Found %d mtu, expected %d", rMTU, mtu)
+	if 1500 != int(rMTU) {
+		t.Errorf("Found %d mtu, expected %d", rMTU, 1500)
 	}
 }
 
@@ -45,22 +45,21 @@ func TestNotRequested4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub, err := dhcpv4.NewReplyFromRequest(req)
+	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
+	resp, err := dhcpv4.NewReplyFromRequest(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mtu = 1500
-	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
+	handler4, err := setup4("1500")
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
 
-	resp, stop := Handler4(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
-	}
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
-	if mtu, err := dhcpv4.GetUint16(dhcpv4.OptionInterfaceMTU, resp.Options); err == nil {
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
+	if mtu, err := dhcpv4.GetUint16(dhcpv4.OptionInterfaceMTU, result.Options); err == nil {
 		t.Errorf("Retrieve mtu %d in response, expected none", mtu)
 	}
 }

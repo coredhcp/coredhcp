@@ -22,28 +22,29 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var (
+type pluginState struct {
 	routers []net.IP
-)
+}
 
 func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("Loaded plugin for DHCPv4.")
 	if len(args) < 1 {
 		return nil, errors.New("need at least one router IP address")
 	}
+	pState := &pluginState{routers: []net.IP{}}
 	for _, arg := range args {
 		router := net.ParseIP(arg)
 		if router.To4() == nil {
-			return Handler4, errors.New("expected an router IP address, got: " + arg)
+			return pState.Handler4, errors.New("expected an router IP address, got: " + arg)
 		}
-		routers = append(routers, router)
+		pState.routers = append(pState.routers, router)
 	}
-	log.Infof("loaded %d router IP addresses.", len(routers))
-	return Handler4, nil
+	log.Infof("loaded %d router IP addresses.", len(pState.routers))
+	return pState.Handler4, nil
 }
 
-//Handler4 handles DHCPv4 packets for the router plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	resp.Options.Update(dhcpv4.OptRouter(routers...))
+// Handler4 handles DHCPv4 packets for the router plugin
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	resp.Options.Update(dhcpv4.OptRouter(p.routers...))
 	return resp, false
 }

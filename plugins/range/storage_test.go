@@ -51,18 +51,18 @@ func TestLoadRecords(t *testing.T) {
 }
 
 func TestWriteRecords(t *testing.T) {
-	tmpfile, err := ioutil.TempFile("", "coredhcptest")
+	tmpfile, err := os.CreateTemp("", "coredhcptest")
 	if err != nil {
 		t.Skipf("Could not setup file-based test: %v", err)
 	}
 	defer os.Remove(tmpfile.Name())
 	defer tmpfile.Close()
 
-	pl := PluginState{}
-	if err := pl.registerBackingFile(tmpfile.Name()); err != nil {
+	var leaseFile *os.File
+	if err := registerBackingFile(&leaseFile, tmpfile.Name()); err != nil {
 		t.Fatalf("Could not setup file")
 	}
-	defer pl.leasefile.Close()
+	defer leaseFile.Close()
 
 	for _, rec := range records {
 		hwaddr, err := net.ParseMAC(rec.mac)
@@ -70,7 +70,7 @@ func TestWriteRecords(t *testing.T) {
 			// bug in testdata
 			panic(err)
 		}
-		if err := pl.saveIPAddress(hwaddr, rec.ip); err != nil {
+		if err := saveIPAddress(leaseFile, hwaddr, rec.ip); err != nil {
 			t.Errorf("Failed to save ip for %s: %v", hwaddr, err)
 		}
 	}

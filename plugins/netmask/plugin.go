@@ -23,9 +23,9 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var (
+type pluginState struct {
 	netmask net.IPMask
-)
+}
 
 func setup4(args ...string) (handler.Handler4, error) {
 	log.Printf("loaded plugin for DHCPv4.")
@@ -40,17 +40,19 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if netmaskIP == nil {
 		return nil, errors.New("expected an netmask address, got: " + args[0])
 	}
-	netmask = net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
-	if !checkValidNetmask(netmask) {
+	pState := &pluginState{
+		netmask: net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3]),
+	}
+	if !checkValidNetmask(pState.netmask) {
 		return nil, errors.New("netmask is not valid, got: " + args[0])
 	}
 	log.Printf("loaded client netmask")
-	return Handler4, nil
+	return pState.Handler4, nil
 }
 
-//Handler4 handles DHCPv4 packets for the netmask plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	resp.Options.Update(dhcpv4.OptSubnetMask(netmask))
+// Handler4 handles DHCPv4 packets for the netmask plugin
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	resp.Options.Update(dhcpv4.OptSubnetMask(p.netmask))
 	return resp, false
 }
 

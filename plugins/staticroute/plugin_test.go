@@ -5,17 +5,15 @@
 package staticroute
 
 import (
+	"github.com/insomniacslk/dhcp/dhcpv4"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSetup4(t *testing.T) {
-	assert.Empty(t, routes)
-
-	var err error
 	// no args
-	_, err = setup4()
+	_, err := setup4()
 	if assert.Error(t, err) {
 		assert.Equal(t, "need at least one static route", err.Error())
 	}
@@ -37,9 +35,25 @@ func TestSetup4(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Equal(t, "expected a gateway address, got: foo", err.Error())
 	}
+}
+
+func TestHandler4(t *testing.T) {
+	// prepare DHCPv4 request
+	req := &dhcpv4.DHCPv4{}
+	resp := &dhcpv4.DHCPv4{
+		Options: dhcpv4.Options{},
+	}
 
 	// valid route
-	_, err = setup4("10.0.0.0/8,192.168.1.1")
+	handler4, err := setup4("10.0.0.0/8,192.168.1.1")
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
+	table := result.Options.Get(dhcpv4.OptionClasslessStaticRoute)
+	routes := dhcpv4.Routes{}
+	if err := routes.FromBytes(table); err != nil {
+		t.Errorf("FromBytes(%v) Unexpected error state: %v", table, err)
+	}
 	if assert.NoError(t, err) {
 		if assert.Equal(t, 1, len(routes)) {
 			assert.Equal(t, "10.0.0.0/8", routes[0].Dest.String())
@@ -47,8 +61,19 @@ func TestSetup4(t *testing.T) {
 		}
 	}
 
+	//Clean options
+	resp.Options = dhcpv4.Options{}
+
 	// multiple valid routes
-	_, err = setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
+	handler4, err = setup4("10.0.0.0/8,192.168.1.1", "192.168.2.0/24,192.168.1.100")
+	result, stop = handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
+	table = result.Options.Get(dhcpv4.OptionClasslessStaticRoute)
+	routes = dhcpv4.Routes{}
+	if err = routes.FromBytes(table); err != nil {
+		t.Errorf("FromBytes(%v) Unexpected error state: %v", table, err)
+	}
 	if assert.NoError(t, err) {
 		if assert.Equal(t, 2, len(routes)) {
 			assert.Equal(t, "10.0.0.0/8", routes[0].Dest.String())

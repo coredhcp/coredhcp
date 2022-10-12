@@ -10,6 +10,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAddServer6(t *testing.T) {
@@ -20,38 +21,36 @@ func TestAddServer6(t *testing.T) {
 	req.MessageType = dhcpv6.MessageTypeRequest
 	req.AddOption(dhcpv6.OptRequestedOption(dhcpv6.OptionDNSRecursiveNameServer))
 
-	stub, err := dhcpv6.NewMessage()
+	resp, err := dhcpv6.NewMessage()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub.MessageType = dhcpv6.MessageTypeReply
-
-	dnsServers6 = []net.IP{
-		net.ParseIP("2001:db8::1"),
-		net.ParseIP("2001:db8::3"),
+	resp.MessageType = dhcpv6.MessageTypeReply
+	dnsServers := []string{
+		"2001:db8::1",
+		"2001:db8::3",
 	}
-
-	resp, stop := Handler6(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
+	handler6, err := setup6(dnsServers...)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
 	}
+	result, stop := handler6(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
 
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
-	opts := resp.GetOption(dhcpv6.OptionDNSRecursiveNameServer)
+	opts := result.GetOption(dhcpv6.OptionDNSRecursiveNameServer)
 	if len(opts) != 1 {
 		t.Fatalf("Expected 1 RDNSS option, got %d: %v", len(opts), opts)
 	}
-	foundServers := resp.(*dhcpv6.Message).Options.DNS()
+	foundServers := result.(*dhcpv6.Message).Options.DNS()
 	// XXX: is enforcing the order relevant here ?
 	for i, srv := range foundServers {
-		if !srv.Equal(dnsServers6[i]) {
-			t.Errorf("Found server %s, expected %s", srv, dnsServers6[i])
+		if !srv.Equal(net.ParseIP(dnsServers[i])) {
+			t.Errorf("Found server %s, expected %s", srv, net.ParseIP(dnsServers[i]))
 		}
 	}
-	if len(foundServers) != len(dnsServers6) {
-		t.Errorf("Found %d servers, expected %d", len(foundServers), len(dnsServers6))
+	if len(foundServers) != len(dnsServers) {
+		t.Errorf("Found %d servers, expected %d", len(foundServers), len(dnsServers))
 	}
 }
 
@@ -63,25 +62,24 @@ func TestNotRequested6(t *testing.T) {
 	req.MessageType = dhcpv6.MessageTypeRequest
 	req.AddOption(dhcpv6.OptRequestedOption())
 
-	stub, err := dhcpv6.NewMessage()
+	resp, err := dhcpv6.NewMessage()
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub.MessageType = dhcpv6.MessageTypeReply
-
-	dnsServers6 = []net.IP{
-		net.ParseIP("2001:db8::1"),
+	resp.MessageType = dhcpv6.MessageTypeReply
+	dnsServers := []string{
+		"2001:db8::1",
+		"2001:db8::3",
 	}
-
-	resp, stop := Handler6(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
+	handler6, err := setup6(dnsServers...)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
 	}
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
+	result, stop := handler6(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
 
-	opts := resp.GetOption(dhcpv6.OptionDNSRecursiveNameServer)
+	opts := result.GetOption(dhcpv6.OptionDNSRecursiveNameServer)
 	if len(opts) != 0 {
 		t.Errorf("RDNSS options were added when not requested: %v", opts)
 	}
@@ -92,31 +90,30 @@ func TestAddServer4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub, err := dhcpv4.NewReplyFromRequest(req)
+	resp, err := dhcpv4.NewReplyFromRequest(req)
 	if err != nil {
 		t.Fatal(err)
 	}
+	dnsServers := []string{
+		"192.0.2.1",
+		"192.0.2.3",
+	}
+	handler4, err := setup4(dnsServers...)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
 
-	dnsServers4 = []net.IP{
-		net.ParseIP("192.0.2.1"),
-		net.ParseIP("192.0.2.3"),
-	}
-
-	resp, stop := Handler4(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
-	}
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
-	servers := resp.DNS()
+	servers := result.DNS()
 	for i, srv := range servers {
-		if !srv.Equal(dnsServers4[i]) {
-			t.Errorf("Found server %s, expected %s", srv, dnsServers4[i])
+		if !srv.Equal(net.ParseIP(dnsServers[i])) {
+			t.Errorf("Found server %s, expected %s", srv, net.ParseIP(dnsServers[i]))
 		}
 	}
-	if len(servers) != len(dnsServers4) {
-		t.Errorf("Found %d servers, expected %d", len(servers), len(dnsServers4))
+	if len(servers) != len(dnsServers) {
+		t.Errorf("Found %d servers, expected %d", len(servers), len(dnsServers))
 	}
 }
 
@@ -125,24 +122,25 @@ func TestNotRequested4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub, err := dhcpv4.NewReplyFromRequest(req)
+	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
+
+	resp, err := dhcpv4.NewReplyFromRequest(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dnsServers4 = []net.IP{
-		net.ParseIP("192.0.2.1"),
+	dnsServers := []string{
+		"192.0.2.1",
 	}
-	req.UpdateOption(dhcpv4.OptParameterRequestList(dhcpv4.OptionBroadcastAddress))
+	handler4, err := setup4(dnsServers...)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.False(t, stop)
 
-	resp, stop := Handler4(req, stub)
-	if resp == nil {
-		t.Fatal("plugin did not return a message")
-	}
-	if stop {
-		t.Error("plugin interrupted processing")
-	}
-	servers := dhcpv4.GetIPs(dhcpv4.OptionDomainNameServer, resp.Options)
+	servers := dhcpv4.GetIPs(dhcpv4.OptionDomainNameServer, result.Options)
 	if len(servers) != 0 {
 		t.Errorf("Found %d DNS servers when explicitly not requested", len(servers))
 	}

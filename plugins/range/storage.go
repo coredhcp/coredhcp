@@ -61,12 +61,12 @@ func loadRecordsFromFile(filename string) (map[string]*Record, error) {
 }
 
 // saveIPAddress writes out a lease to storage
-func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	_, err := p.leasefile.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
+func saveIPAddress(leaseFile *os.File, mac net.HardwareAddr, record *Record) error {
+	_, err := leaseFile.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
 	if err != nil {
 		return err
 	}
-	err = p.leasefile.Sync()
+	err = leaseFile.Sync()
 	if err != nil {
 		return err
 	}
@@ -74,17 +74,17 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 }
 
 // registerBackingFile installs a file as the backing store for leases
-func (p *PluginState) registerBackingFile(filename string) error {
-	if p.leasefile != nil {
+func registerBackingFile(current **os.File, newFileName string) error {
+	if *current != nil {
 		// This is TODO; swapping the file out is easy
 		// but maintaining consistency with the in-memory state isn't
 		return errors.New("cannot swap out a lease storage file while running")
 	}
 	// We never close this, but that's ok because plugins are never stopped/unregistered
-	newLeasefile, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	newLeasefile, err := os.OpenFile(newFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open lease file %s: %w", filename, err)
+		return fmt.Errorf("failed to open lease file %s: %w", newFileName, err)
 	}
-	p.leasefile = newLeasefile
+	*current = newLeasefile
 	return nil
 }

@@ -35,7 +35,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler, err := setupPrefix("2001:db8::/48", "64")
+	handler, err := setup6("2001:db8::/48", "64")
 	if err != nil {
 		t.Fatal(err)
 	}

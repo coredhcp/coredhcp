@@ -5,6 +5,7 @@
 package file
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -214,6 +215,17 @@ func TestLoadDHCPv6Records(t *testing.T) {
 }
 
 func TestHandler4(t *testing.T) {
+	f, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	//In 2 iteration of test we need to get ip address from leases file
+	_, err = f.WriteString("00:11:22:33:44:56 192.0.2.100\n")
+
+	handler4, err := setup4(f.Name())
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv4 request
 		mac := "00:11:22:33:44:55"
@@ -226,7 +238,7 @@ func TestHandler4(t *testing.T) {
 
 		// if we handle this DHCP request, nothing should change since the lease is
 		// unknown
-		result, stop := Handler4(req, resp)
+		result, stop := handler4(req, resp)
 		assert.Same(t, result, resp)
 		assert.False(t, stop)
 		assert.Nil(t, result.YourIPAddr)
@@ -234,7 +246,7 @@ func TestHandler4(t *testing.T) {
 
 	t.Run("known MAC", func(t *testing.T) {
 		// prepare DHCPv4 request
-		mac := "00:11:22:33:44:55"
+		mac := "00:11:22:33:44:56"
 		claddr, _ := net.ParseMAC(mac)
 		req := &dhcpv4.DHCPv4{
 			ClientHWAddr: claddr,
@@ -244,23 +256,28 @@ func TestHandler4(t *testing.T) {
 
 		// add lease for the MAC in the lease map
 		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]net.IP{
-			mac: clIPAddr,
-		}
 
 		// if we handle this DHCP request, the YourIPAddr field should be set
 		// in the result
-		result, stop := Handler4(req, resp)
+		result, stop := handler4(req, resp)
 		assert.Same(t, result, resp)
 		assert.True(t, stop)
 		assert.Equal(t, clIPAddr, result.YourIPAddr)
-
-		// cleanup
-		StaticRecords = make(map[string]net.IP)
 	})
 }
 
 func TestHandler6(t *testing.T) {
+	f, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	//In 2 iteration of test we need to get ip address from leases file
+	_, err = f.WriteString("11:22:33:44:55:77 2001:db8::10:1\n")
+
+	handler6, err := setup6(f.Name())
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv6 request
 		mac := "11:22:33:44:55:66"
@@ -273,14 +290,14 @@ func TestHandler6(t *testing.T) {
 
 		// if we handle this DHCP request, nothing should change since the lease is
 		// unknown
-		result, stop := Handler6(req, resp)
+		result, stop := handler6(req, resp)
 		assert.False(t, stop)
 		assert.Equal(t, 0, len(result.GetOption(dhcpv6.OptionIANA)))
 	})
 
 	t.Run("known MAC", func(t *testing.T) {
 		// prepare DHCPv6 request
-		mac := "11:22:33:44:55:66"
+		mac := "11:22:33:44:55:77"
 		claddr, _ := net.ParseMAC(mac)
 		req, err := dhcpv6.NewSolicit(claddr)
 		require.NoError(t, err)
@@ -288,82 +305,140 @@ func TestHandler6(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(resp.GetOption(dhcpv6.OptionIANA)))
 
-		// add lease for the MAC in the lease map
-		clIPAddr := net.ParseIP("2001:db8::10:1")
-		StaticRecords = map[string]net.IP{
-			mac: clIPAddr,
-		}
-
 		// if we handle this DHCP request, there should be a specific IANA option
 		// set in the resulting response
-		result, stop := Handler6(req, resp)
+		result, stop := handler6(req, resp)
 		assert.False(t, stop)
 		if assert.Equal(t, 1, len(result.GetOption(dhcpv6.OptionIANA))) {
 			opt := result.GetOneOption(dhcpv6.OptionIANA)
 			assert.Contains(t, opt.String(), "IP=2001:db8::10:1")
 		}
-
-		// cleanup
-		StaticRecords = make(map[string]net.IP)
 	})
 }
 
-func TestSetupFile(t *testing.T) {
+func TestSetup(t *testing.T) {
 	// too few arguments
-	_, _, err := setupFile(false)
+	_, err := setup4()
+	assert.Error(t, err)
+
+	_, err = setup6()
 	assert.Error(t, err)
 
 	// empty file name
-	_, _, err = setupFile(false, "")
+	_, err = setup4("")
+	assert.Error(t, err)
+
+	_, err = setup6("")
 	assert.Error(t, err)
 
 	// trigger error in LoadDHCPv*Records
-	_, _, err = setupFile(false, "/foo/bar")
+	_, err = setup4("/foo/bar")
 	assert.Error(t, err)
 
-	_, _, err = setupFile(true, "/foo/bar")
+	_, err = setup6("/foo/bar")
 	assert.Error(t, err)
 
-	// setup temp leases file
-	tmp, err := ioutil.TempFile("", "test_plugin_file")
+	// Correct setup v4 empty leases file with auto refresh
+	emptyLeases4file, err := os.CreateTemp("", "test_plugin_file")
 	require.NoError(t, err)
-	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	}()
+	defer os.Remove(emptyLeases4file.Name())
 
-	t.Run("typical case", func(t *testing.T) {
-		_, err = tmp.WriteString("00:11:22:33:44:55 2001:db8::10:1\n")
-		require.NoError(t, err)
-		_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
-		require.NoError(t, err)
+	_, err = setup4(emptyLeases4file.Name(), autoRefreshArg)
+	assert.NoError(t, err)
 
-		assert.Equal(t, 0, len(StaticRecords))
+	// Correct setup v4 with not empty leases file with auto refresh
+	leases4file, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(leases4file.Name())
 
-		// leases should show up in StaticRecords
-		_, _, err = setupFile(true, tmp.Name())
-		if assert.NoError(t, err) {
-			assert.Equal(t, 2, len(StaticRecords))
-		}
-	})
+	_, err = leases4file.WriteString("00:11:22:33:44:56 192.0.2.100\n")
+	_, err = setup4(leases4file.Name(), autoRefreshArg)
+	assert.NoError(t, err)
 
-	t.Run("autorefresh enabled", func(t *testing.T) {
-		_, _, err = setupFile(true, tmp.Name(), autoRefreshArg)
-		if assert.NoError(t, err) {
-			assert.Equal(t, 2, len(StaticRecords))
-		}
-		// we add more leases to the file
-		// this should trigger an event to refresh the leases database
-		// without calling setupFile again
-		_, err = tmp.WriteString("22:33:44:55:66:77 2001:db8::10:3\n")
-		require.NoError(t, err)
-		// since the event is processed asynchronously, give it a little time
-		time.Sleep(time.Millisecond * 100)
-		// an additional record should show up in the database
-		// but we should respect the locking first
-		recLock.RLock()
-		defer recLock.RUnlock()
+	// Correct setup v6 empty leases file with auto refresh
+	emptyLeases6file, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(emptyLeases6file.Name())
 
-		assert.Equal(t, 3, len(StaticRecords))
-	})
+	_, err = setup6(emptyLeases6file.Name(), autoRefreshArg)
+	assert.NoError(t, err)
+
+	// Correct setup v6 with not empty leases file with auto refresh
+	leases6file, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(leases6file.Name())
+
+	_, err = leases6file.WriteString("11:22:33:44:55:77 2001:db8::10:1\n")
+	_, err = setup6(leases6file.Name(), autoRefreshArg)
+	assert.NoError(t, err)
+}
+
+func TestAutoRefresh4(t *testing.T) {
+	f, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+
+	handler4, err := setup4(f.Name(), autoRefreshArg)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+
+	// Add new lease
+	mac := "00:11:22:33:44:56"
+	clIPAddr := net.ParseIP("192.0.2.100")
+	_, err = f.WriteString(fmt.Sprintf("%s %s\n", mac, clIPAddr.String()))
+
+	// since the event is processed asynchronously, give it a little time
+	time.Sleep(time.Millisecond * 100)
+
+	// prepare DHCPv4 request
+	claddr, _ := net.ParseMAC(mac)
+	req := &dhcpv4.DHCPv4{
+		ClientHWAddr: claddr,
+	}
+	resp := &dhcpv4.DHCPv4{}
+	assert.Nil(t, resp.ClientIPAddr)
+
+	// if we handle this DHCP request, the YourIPAddr field should be set
+	// in the result
+	result, stop := handler4(req, resp)
+	assert.Same(t, result, resp)
+	assert.True(t, stop)
+	assert.Equal(t, clIPAddr, result.YourIPAddr)
+}
+
+func TestAutoRefresh6(t *testing.T) {
+	f, err := os.CreateTemp("", "test_plugin_file")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+
+	handler6, err := setup6(f.Name(), autoRefreshArg)
+	if err != nil {
+		t.Errorf("failed to setup dns plugin: %s", err)
+	}
+
+	// Add new lease
+	mac := "11:22:33:44:55:77"
+	clIPAddr := net.ParseIP("2001:db8::10:1")
+	_, err = f.WriteString(fmt.Sprintf("%s %s\n", mac, clIPAddr.String()))
+
+	// since the event is processed asynchronously, give it a little time
+	time.Sleep(time.Millisecond * 100)
+
+	// prepare DHCPv6 request
+	claddr, _ := net.ParseMAC(mac)
+	req, err := dhcpv6.NewSolicit(claddr)
+	require.NoError(t, err)
+	resp, err := dhcpv6.NewAdvertiseFromSolicit(req)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(resp.GetOption(dhcpv6.OptionIANA)))
+
+	// if we handle this DHCP request, there should be a specific IANA option
+	// set in the resulting response
+	result, stop := handler6(req, resp)
+	assert.False(t, stop)
+	if assert.Equal(t, 1, len(result.GetOption(dhcpv6.OptionIANA))) {
+		opt := result.GetOneOption(dhcpv6.OptionIANA)
+		assert.Contains(t, opt.String(), "IP=2001:db8::10:1")
+	}
 }

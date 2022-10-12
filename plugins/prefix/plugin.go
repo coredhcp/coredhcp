@@ -39,12 +39,12 @@ var log = logger.GetLogger("plugins/prefix")
 // Plugin registers the prefix. Prefix delegation only exists for DHCPv6
 var Plugin = plugins.Plugin{
 	Name:   "prefix",
-	Setup6: setupPrefix,
+	Setup6: setup6,
 }
 
 const leaseDuration = 3600 * time.Second
 
-func setupPrefix(args ...string) (handler.Handler6, error) {
+func setup6(args ...string) (handler.Handler6, error) {
 	// - prefix: 2001:db8::/48 64
 	if len(args) < 2 {
 		return nil, errors.New("Need both a subnet and an allocation max size")
@@ -66,10 +66,10 @@ func setupPrefix(args ...string) (handler.Handler6, error) {
 		return nil, fmt.Errorf("Could not initialize prefix allocator: %v", err)
 	}
 
-	return (&Handler{
+	return (&pluginState{
 		Records:   make(map[string][]lease),
 		allocator: alloc,
-	}).Handle, nil
+	}).handle6, nil
 }
 
 type lease struct {
@@ -77,8 +77,8 @@ type lease struct {
 	Expire time.Time
 }
 
-// Handler holds state of allocations for the plugin
-type Handler struct {
+// pluginState holds state of allocations for the plugin
+type pluginState struct {
 	// Mutex here is the simplest implementation fit for purpose.
 	// We can revisit for perf when we move lease management to separate plugins
 	sync.Mutex
@@ -103,7 +103,7 @@ func recordKey(d *dhcpv6.Duid) string {
 }
 
 // Handle processes DHCPv6 packets for the prefix plugin for a given allocator/leaseset
-func (h *Handler) Handle(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (h *pluginState) handle6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	msg, err := req.GetInnerMessage()
 	if err != nil {
 		log.Error(err)

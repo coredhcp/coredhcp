@@ -58,17 +58,11 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var recLock sync.RWMutex
-
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
-
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+type pluginState struct {
+	recLock sync.RWMutex
+	// staticRecords holds a MAC -> IP address mapping
+	staticRecords map[string]net.IP
+}
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
@@ -142,7 +136,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 }
 
 // Handler6 handles DHCPv6 packets for the file plugin
-func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
+func (p *pluginState) Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	m, err := req.GetInnerMessage()
 	if err != nil {
 		log.Errorf("BUG: could not decapsulate: %v", err)
@@ -161,10 +155,10 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	}
 	log.Debugf("looking up an IP address for MAC %s", mac.String())
 
-	recLock.RLock()
-	defer recLock.RUnlock()
+	p.recLock.RLock()
+	defer p.recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[mac.String()]
+	ipaddr, ok := p.staticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
@@ -185,11 +179,11 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 }
 
 // Handler4 handles DHCPv4 packets for the file plugin
-func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	recLock.RLock()
-	defer recLock.RUnlock()
+func (p *pluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	p.recLock.RLock()
+	defer p.recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
+	ipaddr, ok := p.staticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
@@ -200,16 +194,24 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 }
 
 func setup6(args ...string) (handler.Handler6, error) {
-	h6, _, err := setupFile(true, args...)
+	pState := &pluginState{
+		recLock:       sync.RWMutex{},
+		staticRecords: map[string]net.IP{},
+	}
+	h6, _, err := pState.setupFile(true, args...)
 	return h6, err
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
-	_, h4, err := setupFile(false, args...)
+	pState := &pluginState{
+		recLock:       sync.RWMutex{},
+		staticRecords: map[string]net.IP{},
+	}
+	_, h4, err := pState.setupFile(false, args...)
 	return h4, err
 }
 
-func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
+func (p *pluginState) setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
 	var err error
 	if len(args) < 1 {
 		return nil, nil, errors.New("need a file name")
@@ -220,7 +222,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	}
 
 	// load initial database from lease file
-	if err = loadFromFile(v6, filename); err != nil {
+	if err = p.loadFromFile(v6, filename); err != nil {
 		return nil, nil, err
 	}
 
@@ -242,23 +244,23 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		// on the file
 		go func() {
 			for range watcher.Events {
-				err := loadFromFile(v6, filename)
+				err := p.loadFromFile(v6, filename)
 				if err != nil {
 					log.Warningf("failed to refresh from %s: %s", filename, err)
 
 					continue
 				}
 
-				log.Infof("updated to %d leases from %s", len(StaticRecords), filename)
+				log.Infof("updated to %d leases from %s", len(p.staticRecords), filename)
 			}
 		}()
 	}
 
-	log.Infof("loaded %d leases from %s", len(StaticRecords), filename)
-	return Handler6, Handler4, nil
+	log.Infof("loaded %d leases from %s", len(p.staticRecords), filename)
+	return p.Handler6, p.Handler4, nil
 }
 
-func loadFromFile(v6 bool, filename string) error {
+func (p *pluginState) loadFromFile(v6 bool, filename string) error {
 	var err error
 	var records map[string]net.IP
 	var protver int
@@ -273,10 +275,10 @@ func loadFromFile(v6 bool, filename string) error {
 		return fmt.Errorf("failed to load DHCPv%d records: %w", protver, err)
 	}
 
-	recLock.Lock()
-	defer recLock.Unlock()
+	p.recLock.Lock()
+	defer p.recLock.Unlock()
 
-	StaticRecords = records
+	p.staticRecords = records
 
 	return nil
 }
