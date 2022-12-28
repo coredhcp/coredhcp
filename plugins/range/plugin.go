@@ -8,8 +8,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +31,7 @@ var Plugin = plugins.Plugin{
 	Setup4: setupRange,
 }
 
-//Record holds an IP lease record
+// Record holds an IP lease record
 type Record struct {
 	IP      net.IP
 	expires time.Time
@@ -40,21 +42,38 @@ type PluginState struct {
 	// Rough lock for the whole plugin, we'll get better performance once we use leasestorage
 	sync.Mutex
 	// Recordsv4 holds a MAC -> IP address and lease time mapping
-	Recordsv4 map[string]*Record
-	LeaseTime time.Duration
-	leasefile *os.File
-	allocator allocators.Allocator
+	Recordsv4    map[string]*Record
+	LeaseTime    time.Duration
+	leasefile    *os.File
+	allocator    allocators.Allocator
+	KnownDevices map[string]KnownDevice
 }
 
 // Handler4 handles DHCPv4 packets for the range plugin
 func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	p.Lock()
 	defer p.Unlock()
-	record, ok := p.Recordsv4[req.ClientHWAddr.String()]
+	var record *Record
+	var ok bool
+	if kd, ok := p.KnownDevices[strings.ToLower(req.ClientHWAddr.String())]; ok {
+		record = &Record{
+			IP:      net.ParseIP(kd.IP),
+			expires: time.Now().Add(p.LeaseTime),
+		}
+		err := p.saveIPAddress(req.ClientHWAddr, record)
+		if err != nil {
+			log.Errorf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
+		}
+		p.Recordsv4[req.ClientHWAddr.String()] = record
+	}
+
+	record, ok = p.Recordsv4[req.ClientHWAddr.String()]
 	if !ok {
-		// Allocating new address since there isn't one allocated
+		ipnet := net.IPNet{}
 		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
-		ip, err := p.allocator.Allocate(net.IPNet{})
+
+		// Allocating new address since there isn't one allocated
+		ip, err := p.allocator.Allocate(ipnet)
 		if err != nil {
 			log.Errorf("Could not allocate IP for MAC %s: %v", req.ClientHWAddr.String(), err)
 			return nil, true
@@ -91,8 +110,8 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		p   PluginState
 	)
 
-	if len(args) < 4 {
-		return nil, fmt.Errorf("invalid number of arguments, want: 4 (file name, start IP, end IP, lease time), got: %d", len(args))
+	if len(args) < 5 {
+		return nil, fmt.Errorf("invalid number of arguments, want: 5 (file name, start IP, end IP, lease time, known devices file), got: %d", len(args))
 	}
 	filename := args[0]
 	if filename == "" {
@@ -127,6 +146,9 @@ func setupRange(args ...string) (handler.Handler4, error) {
 
 	log.Printf("Loaded %d DHCPv4 leases from %s", len(p.Recordsv4), filename)
 
+	p.KnownDevices, err = loadKnownDevices(args[4])
+	log.Printf("Loaded %d known devices from %s", len(p.KnownDevices), filename)
+
 	for _, v := range p.Recordsv4 {
 		ip, err := p.allocator.Allocate(net.IPNet{IP: v.IP})
 		if err != nil {
@@ -137,9 +159,39 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		}
 	}
 
+	for _, v := range p.KnownDevices {
+		ip, err := p.allocator.Allocate(net.IPNet{IP: net.ParseIP(v.IP)})
+		if err != nil {
+			return nil, fmt.Errorf("failed to re-allocate leased ip %v: %v", v.IP, err)
+		}
+		if ip.IP.String() != v.IP {
+			return nil, fmt.Errorf("allocator did not re-allocate requested leased ip %v: %v", v.IP, ip.String())
+		}
+	}
+
 	if err := p.registerBackingFile(filename); err != nil {
 		return nil, fmt.Errorf("could not setup lease storage: %w", err)
 	}
 
 	return p.Handler4, nil
+}
+
+func loadKnownDevices(filename string) (map[string]KnownDevice, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var kd KnownDevices
+
+	err = yaml.NewDecoder(f).Decode(&kd)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]KnownDevice)
+	for _, dev := range kd.KnownDevices {
+		out[strings.ToLower(dev.Mac)] = dev
+	}
+	return out, err
 }

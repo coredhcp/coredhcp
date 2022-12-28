@@ -4,16 +4,16 @@ on: [push, pull_request]
 
 jobs:
   coredhcp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        go: ['1.14', '1.15']
+        go: ['1.18', '1.19']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           stable: false
           go-version: ${{ matrix.go }}
@@ -32,13 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.14', '1.15']
+        go: ['1.18', '1.19']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           stable: false
           go-version: ${{ matrix.go }}
