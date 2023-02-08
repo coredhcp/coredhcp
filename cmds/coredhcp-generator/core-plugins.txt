@@ -7,6 +7,7 @@ github.com/coredhcp/coredhcp/plugins/nbp
 github.com/coredhcp/coredhcp/plugins/prefix
 github.com/coredhcp/coredhcp/plugins/range
 github.com/coredhcp/coredhcp/plugins/router
+github.com/coredhcp/coredhcp/plugins/routercidr
 github.com/coredhcp/coredhcp/plugins/serverid
 github.com/coredhcp/coredhcp/plugins/searchdomains
 github.com/coredhcp/coredhcp/plugins/sleep

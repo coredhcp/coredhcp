@@ -70,6 +70,7 @@ var desiredPlugins = []*plugins.Plugin{
 	&pl_prefix.Plugin,
 	&pl_range.Plugin,
 	&pl_router.Plugin,
+	&pl_routercidr.Plugin,
 	&pl_searchdomains.Plugin,
 	&pl_serverid.Plugin,
 	&pl_sleep.Plugin,
