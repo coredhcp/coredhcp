@@ -64,11 +64,14 @@ const (
 
 var log = logger.GetLogger("plugins/routercidr")
 
+// Stickler requires a comment here. Plugin defines our plugin,
+// just like all the other coredhcp plugins.
 var Plugin = plugins.Plugin{
 	Name:   "routercidr",
 	Setup4: setup4,
 }
 
+// PluginState defines the current state of our plugin.
 type PluginState struct {
 	sync.Mutex
 	Filename string
@@ -76,6 +79,7 @@ type PluginState struct {
         RouterInterfaces []netip.Prefix
 }
 
+// Stickler really hates self-documenting code. This loads our config file.
 func LoadRouterInterfaces(filename string) ([]netip.Prefix, error) {
 	yamlfile, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -94,7 +98,6 @@ func LoadRouterInterfaces(filename string) ([]netip.Prefix, error) {
 // don't need to visit all prefixes sequentially for each request. When
 // we do that, the translation from the YAML input to our runtime data
 // structure will occur here.
-
 func (state *PluginState) UpdateFrom(newrouters []netip.Prefix) error {
 	if len(newrouters) == 0 {
 		return fmt.Errorf("no router_interface in config file")
@@ -120,6 +123,8 @@ func (state *PluginState) UpdateFrom(newrouters []netip.Prefix) error {
 	return nil
 }
 
+// Stickler wants me to tell you, dear reader, that this function
+// loads and updates our router interfaces file.
 func (state *PluginState) LoadAndUpdate() error {
 	routers, err := LoadRouterInterfaces(state.Filename)
 	if err != nil {
@@ -128,6 +133,7 @@ func (state *PluginState) LoadAndUpdate() error {
 	return state.UpdateFrom(routers)
 }
 
+// This is the DHCPv4 handler for our plugin, just like for all. the. other. plugins.
 func (state *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		return resp, false
@@ -166,6 +172,7 @@ func setup4(args ...string) (handler.Handler4, error) {
 	return state.Handler4, nil
 }
 
+// This sets up our PluginState from the args we are passed.
 func (state *PluginState) FromArgs(args ...string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("need filename argument")

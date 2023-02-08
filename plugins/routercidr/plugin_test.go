@@ -133,15 +133,15 @@ func TestHandler4(t *testing.T) {
 		assert.Nil(t, result.Router())
 		assert.Nil(t, result.SubnetMask())
 
-		discovery_req, err := dhcpv4.NewDiscovery(claddr)
+		discoveryreq, err := dhcpv4.NewDiscovery(claddr)
 		assert.NoError(t, err)
-		discovery_resp, err := dhcpv4.NewReplyFromRequest(discovery_req)
+		discoveryresp, err := dhcpv4.NewReplyFromRequest(discoveryreq)
 		assert.NoError(t, err)
-		discovery_resp.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
-		discovery_resp.YourIPAddr = net.ParseIP("1.2.3.4").To4()
+		discoveryresp.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
+		discoveryresp.YourIPAddr = net.ParseIP("1.2.3.4").To4()
 		// now we should assign a router and netmask
-		result, stop = state.Handler4(discovery_req, discovery_resp)
-		assert.Same(t, result, discovery_resp)
+		result, stop = state.Handler4(discoveryreq, discoveryresp)
+		assert.Same(t, result, discoveryresp)
 		assert.False(t, stop)
 		routers := result.Router()
 		if assert.Equal(t, 1, len(routers)) {
