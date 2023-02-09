@@ -38,13 +38,13 @@ router_interfaces:
 }
 
 func newStateFromFile(t *testing.T, filename string) *PluginState {
-	routers, err := LoadRouterInterfaces(filename)
+	routers, err := loadRouterInterfaces(filename)
 	if !assert.NoError(t, err) {
 		return nil
 	}
 	var state PluginState
 	state.Filename = filename
-	state.UpdateFrom(routers)
+	state.updateFrom(routers)
 	return &state
 }
 
@@ -53,7 +53,7 @@ func TestLoadRecords(t *testing.T) {
 		tmp, cleanup := makeConfig(t)
 		defer cleanup()
 
-		routers, err := LoadRouterInterfaces(tmp.Name())
+		routers, err := loadRouterInterfaces(tmp.Name())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -73,11 +73,11 @@ func TestLoadRecords(t *testing.T) {
 
 		_, err := tmp.WriteString("  - 1.2.3.1/27\n")
 		require.NoError(t, err)
-		routers, err := LoadRouterInterfaces(tmp.Name())
+		routers, err := loadRouterInterfaces(tmp.Name())
 		assert.Nil(t, err)
 		var state PluginState
 		state.Filename = tmp.Name()
-		err = state.UpdateFrom(routers)
+		err = state.updateFrom(routers)
 		assert.Error(t, err)
 	})
 
@@ -87,11 +87,11 @@ func TestLoadRecords(t *testing.T) {
 
 		_, err := tmp.WriteString("  - 2.3.4.5/0\n")
 		require.NoError(t, err)
-		routers, err := LoadRouterInterfaces(tmp.Name())
+		routers, err := loadRouterInterfaces(tmp.Name())
 		assert.Nil(t, err)
 		var state PluginState
 		state.Filename = tmp.Name()
-		err = state.UpdateFrom(routers)
+		err = state.updateFrom(routers)
 		assert.Error(t, err)
 	})
 
@@ -101,11 +101,11 @@ func TestLoadRecords(t *testing.T) {
 
 		_, err := tmp.WriteString("  - ffdb:face::/60\n")
 		require.NoError(t, err)
-		routers, err := LoadRouterInterfaces(tmp.Name())
+		routers, err := loadRouterInterfaces(tmp.Name())
 		assert.Nil(t, err)
 		var state PluginState
 		state.Filename = tmp.Name()
-		err = state.UpdateFrom(routers)
+		err = state.updateFrom(routers)
 		assert.Error(t, err)
 	})
 }
@@ -159,7 +159,7 @@ func TestHandler4(t *testing.T) {
 		defer cleanup()
 		newStateFromFile(t, tmp.Name())
 		var state PluginState
-		err := state.FromArgs(tmp.Name(), autoRefreshArg)
+		err := state.fromArgs(tmp.Name(), autoRefreshArg)
 		require.NoError(t, err)
 
 		assert.Equal(t, 3, len(state.RouterInterfaces))

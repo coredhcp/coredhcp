@@ -64,8 +64,7 @@ const (
 
 var log = logger.GetLogger("plugins/routercidr")
 
-// Stickler requires a comment here. Plugin defines our plugin,
-// just like all the other coredhcp plugins.
+// Plugin defines our plugin, just like all the other coredhcp plugins.
 var Plugin = plugins.Plugin{
 	Name:   "routercidr",
 	Setup4: setup4,
@@ -79,26 +78,25 @@ type PluginState struct {
         RouterInterfaces []netip.Prefix
 }
 
-// Stickler really hates self-documenting code. This loads our config file.
-func LoadRouterInterfaces(filename string) ([]netip.Prefix, error) {
+func loadRouterInterfaces(filename string) ([]netip.Prefix, error) {
 	yamlfile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 	var enclosure struct {
-		Router_interfaces []netip.Prefix
+		RouterInterfaces []netip.Prefix `yaml:"router_interfaces"`
 	}
 	if err = yaml.Unmarshal(yamlfile, &enclosure); err != nil {
 		return nil, err
 	}
-	return enclosure.Router_interfaces, nil
+	return enclosure.RouterInterfaces, nil
 }
 
 // At some point we might want to use a different data structure so we
 // don't need to visit all prefixes sequentially for each request. When
 // we do that, the translation from the YAML input to our runtime data
 // structure will occur here.
-func (state *PluginState) UpdateFrom(newrouters []netip.Prefix) error {
+func (state *PluginState) updateFrom(newrouters []netip.Prefix) error {
 	if len(newrouters) == 0 {
 		return fmt.Errorf("no router_interface in config file")
 	}
@@ -123,17 +121,15 @@ func (state *PluginState) UpdateFrom(newrouters []netip.Prefix) error {
 	return nil
 }
 
-// Stickler wants me to tell you, dear reader, that this function
-// loads and updates our router interfaces file.
-func (state *PluginState) LoadAndUpdate() error {
-	routers, err := LoadRouterInterfaces(state.Filename)
+func (state *PluginState) loadAndUpdate() error {
+	routers, err := loadRouterInterfaces(state.Filename)
 	if err != nil {
 		return err
 	}
-	return state.UpdateFrom(routers)
+	return state.updateFrom(routers)
 }
 
-// This is the DHCPv4 handler for our plugin, just like for all. the. other. plugins.
+// Handler4 is the DHCPv4 handler for our plugin, just like for all. the. other. plugins.
 func (state *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		return resp, false
@@ -166,14 +162,13 @@ func (state *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bo
 
 func setup4(args ...string) (handler.Handler4, error) {
 	var state PluginState
-	if err := state.FromArgs(args...); err != nil {
+	if err := state.fromArgs(args...); err != nil {
 		return nil, err
 	}
 	return state.Handler4, nil
 }
 
-// This sets up our PluginState from the args we are passed.
-func (state *PluginState) FromArgs(args ...string) error {
+func (state *PluginState) fromArgs(args ...string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("need filename argument")
 	}
@@ -184,7 +179,7 @@ func (state *PluginState) FromArgs(args ...string) error {
 
 	// if the autorefresh argument is not present, just load the leases
 	if len(args) < 2 || args[1] != autoRefreshArg {
-		return state.LoadAndUpdate()
+		return state.loadAndUpdate()
 	}
 	// otherwise watch the lease file and reload on any event
 	watcher, err := fsnotify.NewWatcher()
@@ -196,14 +191,14 @@ func (state *PluginState) FromArgs(args ...string) error {
 		return fmt.Errorf("failed to watch %s: %w", state.Filename, err)
 	}
 	// avoid race by doing initial load only after we start watching
-	if err := state.LoadAndUpdate(); err != nil {
+	if err := state.loadAndUpdate(); err != nil {
 		watcher.Close()
 		return err
 	}
 	state.watcher = watcher
 	go func() {
 		for range watcher.Events {
-			if err := state.LoadAndUpdate(); err != nil {
+			if err := state.loadAndUpdate(); err != nil {
 				log.Warningf("failed to refresh from %s: %s", state.Filename, err)
 			} else {
 				log.Infof("refreshed %s", state.Filename)
