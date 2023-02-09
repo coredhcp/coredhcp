@@ -26,6 +26,7 @@ import (
 	pl_prefix "github.com/coredhcp/coredhcp/plugins/prefix"
 	pl_range "github.com/coredhcp/coredhcp/plugins/range"
 	pl_router "github.com/coredhcp/coredhcp/plugins/router"
+	pl_routercidr "github.com/coredhcp/coredhcp/plugins/routercidr"
 	pl_searchdomains "github.com/coredhcp/coredhcp/plugins/searchdomains"
 	pl_serverid "github.com/coredhcp/coredhcp/plugins/serverid"
 	pl_sleep "github.com/coredhcp/coredhcp/plugins/sleep"
@@ -70,6 +71,7 @@ var desiredPlugins = []*plugins.Plugin{
 	&pl_prefix.Plugin,
 	&pl_range.Plugin,
 	&pl_router.Plugin,
+	&pl_routercidr.Plugin,
 	&pl_searchdomains.Plugin,
 	&pl_serverid.Plugin,
 	&pl_sleep.Plugin,
