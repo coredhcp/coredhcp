@@ -5,12 +5,11 @@
 package bitmap
 
 import (
+	"github.com/bits-and-blooms/bitset"
 	"math"
 	"math/rand"
 	"net"
 	"testing"
-
-	"github.com/willf/bitset"
 )
 
 func getAllocator(bits int) *Allocator {

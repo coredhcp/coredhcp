@@ -11,10 +11,11 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 )
 
-func makeTestDUID(uuid string) *dhcpv6.Duid {
-	return &dhcpv6.Duid{
-		Type: dhcpv6.DUID_UUID,
-		Uuid: []byte(uuid),
+func makeTestDUID(uuid string) dhcpv6.DUID {
+	uuidArr := [16]byte{}
+	copy(uuidArr[:], uuid)
+	return &dhcpv6.DUIDUUID{
+		UUID: uuidArr,
 	}
 }
 
@@ -26,8 +27,8 @@ func TestRejectBadServerIDV6(t *testing.T) {
 	v6ServerID = makeTestDUID("0000000000000000")
 
 	req.MessageType = dhcpv6.MessageTypeRenew
-	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
-	dhcpv6.WithServerID(*makeTestDUID("0000000000000001"))(req)
+	dhcpv6.WithClientID(makeTestDUID("1000000000000000"))(req)
+	dhcpv6.WithServerID(makeTestDUID("0000000000000001"))(req)
 
 	stub, err := dhcpv6.NewReplyFromMessage(req)
 	if err != nil {
@@ -51,8 +52,8 @@ func TestRejectUnexpectedServerIDV6(t *testing.T) {
 	v6ServerID = makeTestDUID("0000000000000000")
 
 	req.MessageType = dhcpv6.MessageTypeSolicit
-	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
-	dhcpv6.WithServerID(*makeTestDUID("0000000000000000"))(req)
+	dhcpv6.WithClientID(makeTestDUID("1000000000000000"))(req)
+	dhcpv6.WithServerID(makeTestDUID("0000000000000000"))(req)
 
 	stub, err := dhcpv6.NewAdvertiseFromSolicit(req)
 	if err != nil {
@@ -76,7 +77,7 @@ func TestAddServerIDV6(t *testing.T) {
 	v6ServerID = makeTestDUID("0000000000000000")
 
 	req.MessageType = dhcpv6.MessageTypeRebind
-	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
+	dhcpv6.WithClientID(makeTestDUID("1000000000000000"))(req)
 
 	stub, err := dhcpv6.NewReplyFromMessage(req)
 	if err != nil {
@@ -90,7 +91,7 @@ func TestAddServerIDV6(t *testing.T) {
 
 	if opt := resp.(*dhcpv6.Message).Options.ServerID(); opt == nil {
 		t.Fatal("plugin did not add a ServerID option")
-	} else if !opt.Equal(*v6ServerID) {
+	} else if !opt.Equal(v6ServerID) {
 		t.Fatalf("Got unexpected DUID: expected %v, got %v", v6ServerID, opt)
 	}
 }
@@ -103,8 +104,8 @@ func TestRejectInnerMessageServerID(t *testing.T) {
 	v6ServerID = makeTestDUID("0000000000000000")
 
 	req.MessageType = dhcpv6.MessageTypeSolicit
-	dhcpv6.WithClientID(*makeTestDUID("1000000000000000"))(req)
-	dhcpv6.WithServerID(*makeTestDUID("0000000000000000"))(req)
+	dhcpv6.WithClientID(makeTestDUID("1000000000000000"))(req)
+	dhcpv6.WithServerID(makeTestDUID("0000000000000000"))(req)
 
 	stub, err := dhcpv6.NewAdvertiseFromSolicit(req)
 	if err != nil {
