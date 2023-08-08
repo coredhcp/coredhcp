@@ -28,7 +28,7 @@ var Plugin = plugins.Plugin{
 
 // v6ServerID is the DUID of the v6 server
 var (
-	v6ServerID *dhcpv6.Duid
+	v6ServerID dhcpv6.DUID
 	v4ServerID net.IP
 )
 
@@ -56,8 +56,8 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		}
 
 		// Approximately all others MUST be discarded if the ServerID doesn't match
-		if !sid.Equal(*v6ServerID) {
-			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid, *v6ServerID)
+		if !sid.Equal(v6ServerID) {
+			log.Infof("requested server ID does not match this server's ID. Got %v, want %v", sid, v6ServerID)
 			return nil, true
 		}
 	} else if msg.MessageType == dhcpv6.MessageTypeRequest ||
@@ -68,7 +68,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		// These message types MUST be discarded if they *don't* contain a ServerID option
 		return nil, true
 	}
-	dhcpv6.WithServerID(*v6ServerID)(resp)
+	dhcpv6.WithServerID(v6ServerID)(resp)
 	return resp, false
 }
 
@@ -131,19 +131,17 @@ func setup6(args ...string) (handler.Handler6, error) {
 	}
 	switch duidType {
 	case "ll", "duid-ll", "duid_ll":
-		v6ServerID = &dhcpv6.Duid{
-			Type: dhcpv6.DUID_LL,
+		v6ServerID = &dhcpv6.DUIDLL{
 			// sorry, only ethernet for now
-			HwType:        iana.HWTypeEthernet,
+			HWType:        iana.HWTypeEthernet,
 			LinkLayerAddr: hwaddr,
 		}
 	case "llt", "duid-llt", "duid_llt":
-		v6ServerID = &dhcpv6.Duid{
-			Type: dhcpv6.DUID_LLT,
+		v6ServerID = &dhcpv6.DUIDLLT{
 			// sorry, zero-time for now
 			Time: 0,
 			// sorry, only ethernet for now
-			HwType:        iana.HWTypeEthernet,
+			HWType:        iana.HWTypeEthernet,
 			LinkLayerAddr: hwaddr,
 		}
 	case "en", "uuid":
