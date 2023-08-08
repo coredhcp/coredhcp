@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/willf/bitset"
+	"github.com/bits-and-blooms/bitset"
 
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins/allocators"

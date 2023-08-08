@@ -13,11 +13,11 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.29
+          # version: v3.0.0
 
           # Optional: golangci-lint command line arguments.
           # args: --issues-exit-code=0
@@ -35,5 +35,6 @@ jobs:
       - name: check license headers
         run: |
           set -exu
-          go get -u github.com/u-root/u-root/tools/checklicenses
+          go get github.com/u-root/u-root/tools/checklicenses
+          go install github.com/u-root/u-root/tools/checklicenses
           $(go env GOPATH)/bin/checklicenses -c .ci/checklicenses_config.json

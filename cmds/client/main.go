@@ -45,14 +45,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	duid := dhcpv6.Duid{
-		Type:          dhcpv6.DUID_LLT,
-		HwType:        iana.HWTypeEthernet,
+	duid := dhcpv6.DUIDLLT{
+		HWType:        iana.HWTypeEthernet,
 		Time:          dhcpv6.GetTime(),
 		LinkLayerAddr: mac,
 	}
 
-	conv, err := c.Exchange("lo", dhcpv6.WithClientID(duid))
+	conv, err := c.Exchange("lo", dhcpv6.WithClientID(&duid))
 	for _, p := range conv {
 		log.Print(p.Summary())
 	}

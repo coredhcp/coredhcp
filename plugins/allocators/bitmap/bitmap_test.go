@@ -10,7 +10,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/willf/bitset"
+	"github.com/bits-and-blooms/bitset"
 )
 
 func getAllocator(bits int) *Allocator {

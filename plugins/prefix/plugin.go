@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	dhcpIana "github.com/insomniacslk/dhcp/iana"
-	"github.com/willf/bitset"
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
@@ -98,7 +98,7 @@ func samePrefix(a, b *net.IPNet) bool {
 }
 
 // recordKey computes the key for the Records array from the client ID
-func recordKey(d *dhcpv6.Duid) string {
+func recordKey(d dhcpv6.DUID) string {
 	return string(d.ToBytes())
 }
 

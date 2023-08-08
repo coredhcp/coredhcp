@@ -14,8 +14,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/coredhcp/coredhcp/plugins/allocators"
-	"github.com/willf/bitset"
 )
 
 var (
