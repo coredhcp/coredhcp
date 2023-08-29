@@ -17,8 +17,10 @@ import (
 	"github.com/coredhcp/coredhcp/server"
 
 	"github.com/coredhcp/coredhcp/plugins"
+	pl_autoconfigure "github.com/coredhcp/coredhcp/plugins/autoconfigure"
 	pl_dns "github.com/coredhcp/coredhcp/plugins/dns"
 	pl_file "github.com/coredhcp/coredhcp/plugins/file"
+	pl_ipv6only "github.com/coredhcp/coredhcp/plugins/ipv6only"
 	pl_leasetime "github.com/coredhcp/coredhcp/plugins/leasetime"
 	pl_mtu "github.com/coredhcp/coredhcp/plugins/mtu"
 	pl_nbp "github.com/coredhcp/coredhcp/plugins/nbp"
@@ -61,8 +63,10 @@ func getLogLevels() []string {
 }
 
 var desiredPlugins = []*plugins.Plugin{
+	&pl_autoconfigure.Plugin,
 	&pl_dns.Plugin,
 	&pl_file.Plugin,
+	&pl_ipv6only.Plugin,
 	&pl_leasetime.Plugin,
 	&pl_mtu.Plugin,
 	&pl_nbp.Plugin,
