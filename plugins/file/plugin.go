@@ -4,11 +4,13 @@
 
 // Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// at least two fields separated by spaces: MAC address, and IP address. IPv4 addresses
+// can be followed by netmask and gateway address. For example:
 //
 //  $ cat file_leases.txt
 //  00:11:22:33:44:55 10.0.0.1
-//  01:23:45:67:89:01 10.0.10.10
+//  00:11:22:33:44:56 10.1.0.1 255.255.255.128 10.1.0.10
+//  01:23:45:67:89:01 2001:db8::10:2
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
@@ -40,6 +42,7 @@ import (
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/coredhcp/coredhcp/plugins"
+	"github.com/coredhcp/coredhcp/plugins/netmask"
 	"github.com/fsnotify/fsnotify"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv6"
@@ -58,86 +61,78 @@ var Plugin = plugins.Plugin{
 	Setup4: setup4,
 }
 
-var recLock sync.RWMutex
-
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
-
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
-
-// LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
-// the specified file. The records have to be one per line, a mac address and an
-// IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
-	log.Infof("reading leases from %s", filename)
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	records := make(map[string]net.IP)
-	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
-		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
-		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
-		}
-		hwaddr, err := net.ParseMAC(tokens[0])
-		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
-		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
-		}
-		records[hwaddr.String()] = ipaddr
-	}
-
-	return records, nil
+// StaticRecord represents the data for a single static DHCP lease
+type StaticRecord struct {
+	Address net.IP     // IPv4 or IPv6 address
+	Netmask net.IPMask // for IPv4 records
+	Gateway net.IP     // for IPv4 records
 }
 
-// LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
-// the specified file. The records have to be one per line, a mac address and an
-// IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
+var recLock sync.RWMutex
+
+// StaticRecords holds a MAC -> DHCP lease mapping
+var StaticRecords map[string]StaticRecord
+
+// loadDHCPRecords parses records stored on the specified file and returns a map
+// of MAC address -> IPv4 or IPv6 leases. The records have to be one per line,
+// a MAC address and an IPv4 or IPv6 address. For IPv4 records, an additional
+// netmask and gateway address can be given as well.
+func loadDHCPRecords(v6 bool, filename string) (map[string]StaticRecord, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
+	records := make(map[string]StaticRecord)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
 			continue
 		}
+		// parse config line
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
+		if len(tokens) < 2 {
+			return nil, fmt.Errorf("malformed line, want at least 2 fields, got %d: %s", len(tokens), line)
 		}
+		// parse MAC address
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
 			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
+		// parse IP address
 		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To16() == nil || ipaddr.To4() != nil {
-			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
+		if v6 && (ipaddr.To16() == nil || ipaddr.To4() != nil) {
+			return nil, fmt.Errorf("expected an IPv6 address, got: %v", tokens[1])
+		} else if !v6 && ipaddr.To4() == nil {
+			return nil, fmt.Errorf("expected an IPv4 address, got: %v", tokens[1])
 		}
-		records[hwaddr.String()] = ipaddr
+
+		lease := StaticRecord{
+			Address: ipaddr,
+		}
+
+		// parse netmask optionally for IPv4 records
+		if !v6 && len(tokens) > 2 {
+			lease.Netmask, err = netmask.ParseNetmask(tokens[2])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// parse gateway optionally for IPv4 records
+		if !v6 && len(tokens) > 3 {
+			lease.Gateway = net.ParseIP(tokens[3])
+			if lease.Gateway.To4() == nil {
+				return nil, fmt.Errorf("expected an IPv4 address, got: %v", tokens[3])
+			}
+		}
+
+		records[hwaddr.String()] = lease
 	}
+
 	return records, nil
 }
 
@@ -164,18 +159,18 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[mac.String()]
+	lease, ok := StaticRecords[mac.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Debugf("found IP address %s for MAC %s", lease.Address, mac.String())
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
-				IPv6Addr:          ipaddr,
+				IPv6Addr:          lease.Address,
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
@@ -189,13 +184,20 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
+	lease, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
 	}
-	resp.YourIPAddr = ipaddr
-	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
+	log.Debugf("found IP address %s for MAC %s", lease.Address, req.ClientHWAddr.String())
+
+	resp.YourIPAddr = lease.Address
+	if len(lease.Netmask) > 0 {
+		resp.Options.Update(dhcpv4.OptSubnetMask(lease.Netmask))
+	}
+	if lease.Gateway.To4() != nil {
+		resp.Options.Update(dhcpv4.OptRouter(lease.Gateway))
+	}
 	return resp, true
 }
 
@@ -210,7 +212,6 @@ func setup4(args ...string) (handler.Handler4, error) {
 }
 
 func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, error) {
-	var err error
 	if len(args) < 1 {
 		return nil, nil, errors.New("need a file name")
 	}
@@ -220,7 +221,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 	}
 
 	// load initial database from lease file
-	if err = loadFromFile(v6, filename); err != nil {
+	if err := loadFromFile(v6, filename); err != nil {
 		return nil, nil, err
 	}
 
@@ -259,16 +260,11 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 }
 
 func loadFromFile(v6 bool, filename string) error {
-	var err error
-	var records map[string]net.IP
-	var protver int
+	protver := 4
 	if v6 {
 		protver = 6
-		records, err = LoadDHCPv6Records(filename)
-	} else {
-		protver = 4
-		records, err = LoadDHCPv4Records(filename)
 	}
+	records, err := loadDHCPRecords(v6, filename)
 	if err != nil {
 		return fmt.Errorf("failed to load DHCPv%d records: %w", protver, err)
 	}

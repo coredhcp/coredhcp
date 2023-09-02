@@ -7,6 +7,7 @@ package netmask
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/coredhcp/coredhcp/handler"
@@ -32,17 +33,10 @@ func setup4(args ...string) (handler.Handler4, error) {
 	if len(args) != 1 {
 		return nil, errors.New("need at least one netmask IP address")
 	}
-	netmaskIP := net.ParseIP(args[0])
-	if netmaskIP.IsUnspecified() {
-		return nil, errors.New("netmask is not valid, got: " + args[0])
-	}
-	netmaskIP = netmaskIP.To4()
-	if netmaskIP == nil {
-		return nil, errors.New("expected an netmask address, got: " + args[0])
-	}
-	netmask = net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
-	if !checkValidNetmask(netmask) {
-		return nil, errors.New("netmask is not valid, got: " + args[0])
+	var err error
+	netmask, err = ParseNetmask(args[0])
+	if err != nil {
+		return nil, err
 	}
 	log.Printf("loaded client netmask")
 	return Handler4, nil
@@ -52,6 +46,24 @@ func setup4(args ...string) (handler.Handler4, error) {
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	resp.Options.Update(dhcpv4.OptSubnetMask(netmask))
 	return resp, false
+}
+
+// ParseNetmask parses and validates given string as netmask and returns IPMask
+func ParseNetmask(nm string) (net.IPMask, error) {
+	netmaskIP := net.ParseIP(nm)
+	if netmaskIP.IsUnspecified() {
+		return nil, fmt.Errorf("netmask is not valid, got: %s", nm)
+	}
+	netmaskIP = netmaskIP.To4()
+	if netmaskIP == nil {
+		return nil, fmt.Errorf("expected an netmask address, got: %s", nm)
+	}
+	netmask := net.IPv4Mask(netmaskIP[0], netmaskIP[1], netmaskIP[2], netmaskIP[3])
+	if !checkValidNetmask(netmask) {
+		return nil, fmt.Errorf("netmask is not valid, got: %s ", nm)
+	}
+
+	return netmask, nil
 }
 
 func checkValidNetmask(netmask net.IPMask) bool {
