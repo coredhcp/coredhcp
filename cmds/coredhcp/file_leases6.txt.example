@@ -1,0 +1,8 @@
+# example leases.txt file for IPv6
+#
+# Give this IP address to this MAC address
+#
+00:11:22:33:44:55 2001:2::1
+
+# (IPV6 does not yet support Subscriber-ID, Circuit-ID, Remote-ID and netmask etc. as per IPv4 syntax)
+

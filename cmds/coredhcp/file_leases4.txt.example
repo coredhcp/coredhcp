@@ -1,0 +1,20 @@
+# example leases.txt file for IPv4
+#
+
+# Requests from this MAC will get this IP address
+00:11:22:33:44:55 192.168.0.99
+
+# Requests from this MAC will get this IP address, netmask and gateway
+00:11:22:33:44:00 192.168.0.123,255.255.255.0,192.168.0.1
+
+# Requests from this Subscriber-ID will get this IP address (must be surrounded by quotes, ASCII only)
+Subscriber-ID:"Lillian's line" 192.168.0.135
+
+# Requests from this Subscriber-ID will get this IP address & netmask (gateway will come from global config)
+Subscriber-ID:"Lukas' line" 192.168.0.135,255.255.255.0
+
+# Requests from this Circuit-ID will get this IP address & netmask (gateway will come from global config)
+Circuit-ID:"circuit1" 192.168.0.136,255.255.255.0
+
+# Requests from this Remote-ID will get this IP address & netmask (gateway will come from global config)
+Remote-ID:"xyz1023" 192.168.0.136,255.255.255.0

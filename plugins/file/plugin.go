@@ -2,13 +2,21 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-// Package file enables static mapping of MAC <--> IP addresses.
-// The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// Package file enables static mapping of MAC <--> IP addresses
+// or Subcriber-ID <--> IP addresses, as specified by RFC3993.
+//
+// The mapping is stored in an ASCII text file, where each mapping is described by one line .
+//
+// Each line can specify either a MAC address or a Subscriber-ID, and an IP address.  This
+// example shows two MAC addresses and two Subscriber-IDs.
 //
 //  $ cat file_leases.txt
 //  00:11:22:33:44:55 10.0.0.1
 //  01:23:45:67:89:01 10.0.10.10
+//  Subscriber-ID:"Boris" 10.10.10.20
+//  Subscriber-ID:"Another subscriber" 10.10.10.100
+//
+// There should be separate files for DHCP and DHCPv6 leases, you can't mix them.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
@@ -29,10 +37,12 @@ package file
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -60,26 +70,57 @@ var Plugin = plugins.Plugin{
 
 var recLock sync.RWMutex
 
-// StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
+type lookupType struct {
+	name      string
+	subOption int
+}
 
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+type lookupValue struct {
+	t     lookupType
+	value string
+}
+
+func (v lookupValue) String() string {
+	return fmt.Sprintf("%s:%s (%s)", v.t.name, v.value, hex.EncodeToString([]byte(v.value)))
+}
+
+var LookupTypeMAC = lookupType{"MAC", 0}
+
+func LookupMAC(s string) lookupValue { return lookupValue{LookupTypeMAC, s} }
+
+var LookupTypeCircuitID = lookupType{"Circuit-ID", 1}
+
+func LookupCircuitID(s string) lookupValue { return lookupValue{LookupTypeCircuitID, s} }
+
+var LookupTypeRemoteID = lookupType{"Remote-ID", 2}
+
+func LookupRemoteID(s string) lookupValue { return lookupValue{LookupTypeRemoteID, s} }
+
+var LookupTypeSubscriberID = lookupType{"Subscriber-ID", 6}
+
+func LookupSubscriberID(s string) lookupValue { return lookupValue{LookupTypeSubscriberID, s} }
+
+var AllLookupTypes = []lookupType{LookupTypeCircuitID, LookupTypeRemoteID, LookupTypeSubscriberID}
+
+type ipConfig struct {
+	ip      net.IP
+	netmask net.IPMask // or nil value if undefined
+	gateway net.IP     // or nil value if undefined
+}
+
+// StaticRecords holds a address mappings of different types
+var StaticRecords map[lookupValue]ipConfig
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
+func LoadDHCPv4Records(filename string) (map[lookupValue]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
+	records := make(map[lookupValue]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -88,19 +129,60 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
-		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
+
+		var reTypes map[*regexp.Regexp]lookupType = make(map[*regexp.Regexp]lookupType)
+		reTypes[regexp.MustCompile(`\s*(([0-9A-Fa-f]{2}:?){6})`)] = LookupTypeMAC
+		for _, lt := range AllLookupTypes {
+			re := regexp.MustCompile(`\s*` + lt.name + ":" + `"(.*?)"\s+`)
+			reTypes[re] = lt
 		}
-		hwaddr, err := net.ParseMAC(tokens[0])
-		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+
+		var lookup lookupValue
+		for re, lt := range reTypes {
+			if m := re.FindStringSubmatch(line); m != nil {
+				reBackslash := regexp.MustCompile(`\\(.)`)
+				lookup = lookupValue{lt, reBackslash.ReplaceAllString(m[1], "$1")}
+				line = line[len(m[0]):]
+				goto found
+			}
 		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
+		return nil, fmt.Errorf("couldn't parse line: %s", line)
+	found:
+
+		var config ipConfig
+		ipMatches := regexp.MustCompile(`^\s*(\d+\.\d+\.\d+\.\d+)(,\d+\.\d+\.\d+\.\d+)?(,\d+\.\d+\.\d+\.\d+)?\s*$`).FindStringSubmatch(line)
+		if ipMatches == nil {
+			return nil, fmt.Errorf("couldn't parse second half of line: %s", line)
 		}
-		records[hwaddr.String()] = ipaddr
+
+		config.ip = net.ParseIP(ipMatches[1])
+		if config.ip == nil || config.ip.To4() == nil {
+			return nil, fmt.Errorf("not an IPv4 address: %v", ipMatches[1])
+		}
+
+		if ipMatches[2] != "" {
+			netmaskAsIp := net.ParseIP(ipMatches[2][1:])
+			if netmaskAsIp == nil || netmaskAsIp.To4() == nil {
+				return nil, fmt.Errorf("not an IPv4 netmask: %v", ipMatches[2][1:])
+			}
+			b := []byte(netmaskAsIp)
+			config.netmask = net.IPv4Mask(b[12], b[13], b[14], b[15])
+			if _, bits := config.netmask.Size(); bits == 0 {
+				return nil, fmt.Errorf("not a valid netmask: %v", ipMatches[2][1:])
+			}
+		}
+
+		if ipMatches[3] != "" {
+			if config.netmask == nil {
+				return nil, fmt.Errorf("gateway specified without netmask: %s", line)
+			}
+			config.gateway = net.ParseIP(ipMatches[3][1:])
+			if config.gateway == nil || config.gateway.To4() == nil {
+				return nil, fmt.Errorf("not an IPv4 address: %v", ipMatches[3][1:])
+			}
+		}
+
+		records[lookup] = config
 	}
 
 	return records, nil
@@ -109,13 +191,13 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
+func LoadDHCPv6Records(filename string) (map[lookupValue]ipConfig, error) {
 	log.Infof("reading leases from %s", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
+	records := make(map[lookupValue]ipConfig)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if len(line) == 0 {
@@ -136,7 +218,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		if ipaddr.To16() == nil || ipaddr.To4() != nil {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
-		records[hwaddr.String()] = ipaddr
+		records[LookupMAC(hwaddr.String())] = ipConfig{ip: ipaddr}
 	}
 	return records, nil
 }
@@ -164,18 +246,18 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[mac.String()]
+	config, ok := StaticRecords[LookupMAC(mac.String())]
 	if !ok {
 		log.Warningf("MAC address %s is unknown", mac.String())
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Debugf("found IP address %s for MAC %s", config.ip, mac.String())
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
-				IPv6Addr:          ipaddr,
+				IPv6Addr:          config.ip,
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
@@ -184,19 +266,58 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	return resp, false
 }
 
+func lookupsFromRequest(req *dhcpv4.DHCPv4) (lookups []lookupValue) {
+	optionValue := req.Options.Get(dhcpv4.OptionRelayAgentInformation)
+	for b := 0; b < len(optionValue); {
+		subOption := int(optionValue[b])
+		length := int(optionValue[b+1])
+
+		b += 2
+		if b+length > len(optionValue) {
+			log.Warningf("Ignoring malformed suboption %d in Relay Agent Information", subOption)
+			break
+		}
+		for _, lt := range AllLookupTypes {
+			if lt.subOption == subOption {
+				subOptionValue := optionValue[b : b+length]
+				if length > 2 && subOptionValue[0] == 1 && int(subOptionValue[1]) == length-2 {
+					// https://community.cisco.com/t5/switching/remote-id-suboption-in-dhcp-option-82/td-p/1879918
+					// Assume Cisco format
+					subOptionValue = subOptionValue[2:]
+				}
+				lookups = append(lookups, lookupValue{lt, string(subOptionValue)})
+			}
+		}
+		b += length
+	}
+	lookups = append(lookups, lookupValue{LookupTypeMAC, req.ClientHWAddr.String()})
+	return lookups
+}
+
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
-	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
-	if !ok {
-		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
-		return resp, false
+	for _, lookup := range lookupsFromRequest(req) {
+		config, ok := StaticRecords[lookup]
+		if ok {
+			resp.YourIPAddr = config.ip
+
+			if config.gateway != nil {
+				resp.Options.Update(dhcpv4.OptRouter(config.gateway))
+			}
+
+			if config.netmask != nil {
+				resp.Options.Update(dhcpv4.OptSubnetMask(config.netmask))
+			}
+
+			log.Debugf("found IP address %s for %s", config.ip, lookup)
+			return resp, true
+		}
 	}
-	resp.YourIPAddr = ipaddr
-	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
-	return resp, true
+
+	return resp, false
 }
 
 func setup6(args ...string) (handler.Handler6, error) {
@@ -260,7 +381,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 func loadFromFile(v6 bool, filename string) error {
 	var err error
-	var records map[string]net.IP
+	var records map[lookupValue]ipConfig
 	var protver int
 	if v6 {
 		protver = 6
