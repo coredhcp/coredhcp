@@ -2,6 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+//go:build integration
 // +build integration
 
 package e2e_test
@@ -119,9 +120,8 @@ func TestDora(t *testing.T) {
 	}
 	require.NoError(t, runClient6(
 		"coredhcp-direct-lower", "cdhcp_cli",
-		dhcpv6.WithClientID(dhcpv6.Duid{
-			Type:          dhcpv6.DUID_LL,
-			HwType:        iana.HWTypeEthernet,
+		dhcpv6.WithClientID(&dhcpv6.DUIDLL{
+			HWType:        iana.HWTypeEthernet,
 			LinkLayerAddr: mac,
 		}),
 	))
