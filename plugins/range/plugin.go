@@ -5,11 +5,11 @@
 package rangeplugin
 
 import (
+	"database/sql"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -32,7 +32,7 @@ var Plugin = plugins.Plugin{
 //Record holds an IP lease record
 type Record struct {
 	IP      net.IP
-	expires time.Time
+	expires int
 }
 
 // PluginState is the data held by an instance of the range plugin
@@ -42,7 +42,7 @@ type PluginState struct {
 	// Recordsv4 holds a MAC -> IP address and lease time mapping
 	Recordsv4 map[string]*Record
 	LeaseTime time.Duration
-	leasefile *os.File
+	leasedb   *sql.DB
 	allocator allocators.Allocator
 }
 
@@ -61,7 +61,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		}
 		rec := Record{
 			IP:      ip.IP.To4(),
-			expires: time.Now().Add(p.LeaseTime),
+			expires: int(time.Now().Add(p.LeaseTime).Unix()),
 		}
 		err = p.saveIPAddress(req.ClientHWAddr, &rec)
 		if err != nil {
@@ -71,8 +71,9 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		record = &rec
 	} else {
 		// Ensure we extend the existing lease at least past when the one we're giving expires
-		if record.expires.Before(time.Now().Add(p.LeaseTime)) {
-			record.expires = time.Now().Add(p.LeaseTime).Round(time.Second)
+		expiry := time.Unix(int64(record.expires), 0)
+		if expiry.Before(time.Now().Add(p.LeaseTime)) {
+			record.expires = int(time.Now().Add(p.LeaseTime).Round(time.Second).Unix())
 			err := p.saveIPAddress(req.ClientHWAddr, record)
 			if err != nil {
 				log.Errorf("Could not persist lease for MAC %s: %v", req.ClientHWAddr.String(), err)
@@ -120,7 +121,10 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		return nil, fmt.Errorf("invalid lease duration: %v", args[3])
 	}
 
-	p.Recordsv4, err = loadRecordsFromFile(filename)
+	if err := p.registerBackingDB(filename); err != nil {
+		return nil, fmt.Errorf("could not setup lease storage: %w", err)
+	}
+	p.Recordsv4, err = loadRecords(p.leasedb)
 	if err != nil {
 		return nil, fmt.Errorf("could not load records from file: %v", err)
 	}
@@ -135,10 +139,6 @@ func setupRange(args ...string) (handler.Handler4, error) {
 		if ip.IP.String() != v.IP.String() {
 			return nil, fmt.Errorf("allocator did not re-allocate requested leased ip %v: %v", v.IP.String(), ip.String())
 		}
-	}
-
-	if err := p.registerBackingFile(filename); err != nil {
-		return nil, fmt.Errorf("could not setup lease storage: %w", err)
 	}
 
 	return p.Handler4, nil
