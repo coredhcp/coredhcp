@@ -5,86 +5,87 @@
 package rangeplugin
 
 import (
-	"bufio"
+	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"strings"
-	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
+
+func loadDB(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s", path))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database (%T): %w", err, err)
+	}
+	if _, err := db.Exec("create table if not exists leases4 (mac string not null, ip string not null, expiry int, primary key (mac, ip))"); err != nil {
+		return nil, fmt.Errorf("table creation failed: %w", err)
+	}
+	return db, nil
+}
 
 // loadRecords loads the DHCPv6/v4 Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IP address.
-func loadRecords(r io.Reader) (map[string]*Record, error) {
-	sc := bufio.NewScanner(r)
-	records := make(map[string]*Record)
-	for sc.Scan() {
-		line := sc.Text()
-		if len(line) == 0 {
-			continue
+func loadRecords(db *sql.DB) (map[string]*Record, error) {
+	rows, err := db.Query("select mac, ip, expiry from leases4")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query leases database: %w", err)
+	}
+	defer rows.Close()
+	var (
+		mac, ip string
+		expiry  int
+		records = make(map[string]*Record)
+	)
+	for rows.Next() {
+		if err := rows.Scan(&mac, &ip, &expiry); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
-		tokens := strings.Fields(line)
-		if len(tokens) != 3 {
-			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
-		}
-		hwaddr, err := net.ParseMAC(tokens[0])
+		hwaddr, err := net.ParseMAC(mac)
 		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("malformed hardware address: %s", mac)
 		}
-		ipaddr := net.ParseIP(tokens[1])
+		ipaddr := net.ParseIP(ip)
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		expires, err := time.Parse(time.RFC3339, tokens[2])
-		if err != nil {
-			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
-		}
-		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expires}
+		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expiry}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed lease database row scanning: %w", err)
 	}
 	return records, nil
 }
 
-func loadRecordsFromFile(filename string) (map[string]*Record, error) {
-	reader, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0640)
-	defer func() {
-		if err := reader.Close(); err != nil {
-			log.Warningf("Failed to close file %s: %v", filename, err)
-		}
-	}()
-	if err != nil {
-		return nil, fmt.Errorf("cannot open lease file %s: %w", filename, err)
-	}
-	return loadRecords(reader)
-}
-
 // saveIPAddress writes out a lease to storage
 func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	_, err := p.leasefile.WriteString(mac.String() + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
+	stmt, err := p.leasedb.Prepare("insert into leases4(mac, ip, expiry) select ?, ?, ? where not exists (select 1 from leases4 where mac = ? and ip = ? and expiry < TIME())")
 	if err != nil {
-		return err
+		return fmt.Errorf("statement preparation failed: %w", err)
 	}
-	err = p.leasefile.Sync()
-	if err != nil {
-		return err
+	if _, err := stmt.Exec(
+		mac.String(),
+		record.IP.String(),
+		record.expires,
+		mac.String(),
+		record.IP.String(),
+	); err != nil {
+		return fmt.Errorf("record insert/update failed: %w", err)
 	}
 	return nil
 }
 
-// registerBackingFile installs a file as the backing store for leases
-func (p *PluginState) registerBackingFile(filename string) error {
-	if p.leasefile != nil {
-		// This is TODO; swapping the file out is easy
-		// but maintaining consistency with the in-memory state isn't
-		return errors.New("cannot swap out a lease storage file while running")
+// registerBackingDB installs a database connection string as the backing store for leases
+func (p *PluginState) registerBackingDB(filename string) error {
+	if p.leasedb != nil {
+		return errors.New("cannot swap out a lease database while running")
 	}
 	// We never close this, but that's ok because plugins are never stopped/unregistered
-	newLeasefile, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	newLeaseDB, err := loadDB(filename)
 	if err != nil {
-		return fmt.Errorf("failed to open lease file %s: %w", filename, err)
+		return fmt.Errorf("failed to open lease database %s: %w", filename, err)
 	}
-	p.leasefile = newLeasefile
+	p.leasedb = newLeaseDB
 	return nil
 }
