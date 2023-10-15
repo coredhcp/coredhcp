@@ -29,6 +29,9 @@ var (
 
 // Handler4 handles DHCPv4 packets for the lease_time plugin.
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	if req.MessageType() == dhcpv4.MessageTypeInform {
+		return resp, false
+	}
 	if req.OpCode != dhcpv4.OpcodeBootRequest {
 		return resp, false
 	}

@@ -214,6 +214,9 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	if req.MessageType() == dhcpv4.MessageTypeInform {
+		return resp, false
+	}
 	recLock.RLock()
 	defer recLock.RUnlock()
 
