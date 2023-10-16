@@ -60,7 +60,7 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 
 // saveIPAddress writes out a lease to storage
 func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	stmt, err := p.leasedb.Prepare("insert into leases4(mac, ip, expiry) select ?, ?, ? where not exists (select 1 from leases4 where mac = ? and ip = ? and expiry < TIME())")
+	stmt, err := p.leasedb.Prepare(`insert or replace into leases4(mac, ip, expiry) values (?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}
@@ -68,8 +68,6 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 		mac.String(),
 		record.IP.String(),
 		record.expires,
-		mac.String(),
-		record.IP.String(),
 	); err != nil {
 		return fmt.Errorf("record insert/update failed: %w", err)
 	}
