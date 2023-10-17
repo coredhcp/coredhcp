@@ -5,7 +5,7 @@
 package logger
 
 import (
-	"io/ioutil"
+	"io"
 	"sync"
 
 	log_prefixed "github.com/chappjc/logrus-prefix"
@@ -42,5 +42,5 @@ func WithFile(log *logrus.Entry, logfile string) {
 
 // WithNoStdOutErr disables logging to stdout/stderr.
 func WithNoStdOutErr(log *logrus.Entry) {
-	log.Logger.SetOutput(ioutil.Discard)
+	log.Logger.SetOutput(io.Discard)
 }

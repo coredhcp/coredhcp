@@ -12,7 +12,7 @@ You can use `coredhcp-generator` to generate a `main.go` that includes all the
 plugins you wish. Just use it as follows:
 
 ```
-$ ./coredhcp-generator -from core-plugins.txt
+$ ./coredhcp-generator --from core-plugins.txt
 2019/11/21 23:32:04 Generating output file '/tmp/coredhcp547019106/coredhcp.go' with 7 plugin(s):
 2019/11/21 23:32:04   1) github.com/coredhcp/coredhcp/plugins/file
 2019/11/21 23:32:04   2) github.com/coredhcp/coredhcp/plugins/lease_time
@@ -25,9 +25,9 @@ $ ./coredhcp-generator -from core-plugins.txt
 ```
 
 You can also specify the plugin list on the command line, or mix it with
-`-from`:
+`--from`:
 ```
-$ ./coredhcp-generator -from core-plugins.txt \
+$ ./coredhcp-generator --from core-plugins.txt \
     github.com/coredhcp/plugins/redis
 ```
 

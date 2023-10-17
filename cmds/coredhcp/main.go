@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 
@@ -44,7 +44,7 @@ var (
 )
 
 var logLevels = map[string]func(*logrus.Logger){
-	"none":    func(l *logrus.Logger) { l.SetOutput(ioutil.Discard) },
+	"none":    func(l *logrus.Logger) { l.SetOutput(io.Discard) },
 	"debug":   func(l *logrus.Logger) { l.SetLevel(logrus.DebugLevel) },
 	"info":    func(l *logrus.Logger) { l.SetLevel(logrus.InfoLevel) },
 	"warning": func(l *logrus.Logger) { l.SetLevel(logrus.WarnLevel) },
