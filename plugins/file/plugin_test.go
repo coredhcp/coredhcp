@@ -5,7 +5,6 @@
 package file
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -20,7 +19,7 @@ import (
 func TestLoadDHCPv4Records(t *testing.T) {
 	t.Run("valid leases", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -52,7 +51,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 	t.Run("missing field", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -68,7 +67,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 	t.Run("invalid MAC", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -84,7 +83,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 	t.Run("invalid IP address", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -100,7 +99,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 	t.Run("lease with IPv6 address", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -118,7 +117,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 func TestLoadDHCPv6Records(t *testing.T) {
 	t.Run("valid leases", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -150,7 +149,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 	t.Run("missing field", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -166,7 +165,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 	t.Run("invalid MAC", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -182,7 +181,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 	t.Run("invalid IP address", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -198,7 +197,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 	t.Run("lease with IPv4 address", func(t *testing.T) {
 		// setup temp leases file
-		tmp, err := ioutil.TempFile("", "test_plugin_file")
+		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer func() {
 			tmp.Close()
@@ -325,7 +324,7 @@ func TestSetupFile(t *testing.T) {
 	assert.Error(t, err)
 
 	// setup temp leases file
-	tmp, err := ioutil.TempFile("", "test_plugin_file")
+	tmp, err := os.CreateTemp("", "test_plugin_file")
 	require.NoError(t, err)
 	defer func() {
 		tmp.Close()

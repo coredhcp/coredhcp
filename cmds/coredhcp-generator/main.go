@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -54,7 +53,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	data, err := ioutil.ReadFile(*flagTemplate)
+	data, err := os.ReadFile(*flagTemplate)
 	if err != nil {
 		log.Fatalf("Failed to read template file '%s': %v", *flagTemplate, err)
 	}
@@ -109,7 +108,7 @@ func main() {
 	}
 	outfile := *flagOutfile
 	if outfile == "" {
-		tmpdir, err := ioutil.TempDir("", "coredhcp")
+		tmpdir, err := os.MkdirTemp("", "coredhcp")
 		if err != nil {
 			log.Fatalf("Cannot create temporary directory: %v", err)
 		}

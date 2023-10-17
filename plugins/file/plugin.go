@@ -31,8 +31,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -75,7 +75,7 @@ var (
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // IPv6 address.
 func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
