@@ -33,6 +33,7 @@ var Plugin = plugins.Plugin{
 type Record struct {
 	IP      net.IP
 	expires int
+	hostname string
 }
 
 // PluginState is the data held by an instance of the range plugin
@@ -51,6 +52,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	p.Lock()
 	defer p.Unlock()
 	record, ok := p.Recordsv4[req.ClientHWAddr.String()]
+	hostname := req.HostName()
 	if !ok {
 		// Allocating new address since there isn't one allocated
 		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
@@ -62,6 +64,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		rec := Record{
 			IP:      ip.IP.To4(),
 			expires: int(time.Now().Add(p.LeaseTime).Unix()),
+			hostname: hostname,
 		}
 		err = p.saveIPAddress(req.ClientHWAddr, &rec)
 		if err != nil {
@@ -74,6 +77,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		expiry := time.Unix(int64(record.expires), 0)
 		if expiry.Before(time.Now().Add(p.LeaseTime)) {
 			record.expires = int(time.Now().Add(p.LeaseTime).Round(time.Second).Unix())
+			record.hostname = hostname
 			err := p.saveIPAddress(req.ClientHWAddr, record)
 			if err != nil {
 				log.Errorf("Could not persist lease for MAC %s: %v", req.ClientHWAddr.String(), err)
