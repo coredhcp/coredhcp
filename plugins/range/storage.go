@@ -18,7 +18,7 @@ func loadDB(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database (%T): %w", err, err)
 	}
-	if _, err := db.Exec("create table if not exists leases4 (mac string not null, ip string not null, expiry int, primary key (mac, ip))"); err != nil {
+	if _, err := db.Exec("create table if not exists leases4 (mac string not null, ip string not null, expiry int, hostname string not null, primary key (mac, ip))"); err != nil {
 		return nil, fmt.Errorf("table creation failed: %w", err)
 	}
 	return db, nil
@@ -28,18 +28,18 @@ func loadDB(path string) (*sql.DB, error) {
 // the specified file. The records have to be one per line, a mac address and an
 // IP address.
 func loadRecords(db *sql.DB) (map[string]*Record, error) {
-	rows, err := db.Query("select mac, ip, expiry from leases4")
+	rows, err := db.Query("select mac, ip, expiry, hostname from leases4")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query leases database: %w", err)
 	}
 	defer rows.Close()
 	var (
-		mac, ip string
+		mac, ip, hostname string
 		expiry  int
 		records = make(map[string]*Record)
 	)
 	for rows.Next() {
-		if err := rows.Scan(&mac, &ip, &expiry); err != nil {
+		if err := rows.Scan(&mac, &ip, &expiry, &hostname); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		hwaddr, err := net.ParseMAC(mac)
@@ -50,7 +50,7 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expiry}
+		records[hwaddr.String()] = &Record{IP: ipaddr, expires: expiry, hostname: hostname}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed lease database row scanning: %w", err)
@@ -60,7 +60,7 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 
 // saveIPAddress writes out a lease to storage
 func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	stmt, err := p.leasedb.Prepare(`insert or replace into leases4(mac, ip, expiry) values (?, ?, ?)`)
+	stmt, err := p.leasedb.Prepare(`insert or replace into leases4(mac, ip, expiry, hostname) values (?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}
@@ -68,6 +68,7 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 		mac.String(),
 		record.IP.String(),
 		record.expires,
+		record.hostname,
 	); err != nil {
 		return fmt.Errorf("record insert/update failed: %w", err)
 	}
