@@ -35,8 +35,8 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 	defer rows.Close()
 	var (
 		mac, ip, hostname string
-		expiry  int
-		records = make(map[string]*Record)
+		expiry            int
+		records           = make(map[string]*Record)
 	)
 	for rows.Next() {
 		if err := rows.Scan(&mac, &ip, &expiry, &hostname); err != nil {
@@ -64,6 +64,7 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}
+	defer stmt.Close()
 	if _, err := stmt.Exec(
 		mac.String(),
 		record.IP.String(),
