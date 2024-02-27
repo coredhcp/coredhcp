@@ -7,16 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.19', '1.20']
+        go: ['1.20', '1.21']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
         with:
-          stable: false
           go-version: ${{ matrix.go }}
       - run: |
           # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
@@ -36,7 +35,7 @@ jobs:
               fi
           done
       - name: report coverage to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: coverage.txt
           flags: unittests
@@ -46,16 +45,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.19', '1.20']
+        go: ['1.20', '1.21']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
         with:
-          stable: false
           go-version: ${{ matrix.go }}
       - run: |
           # `env` doesn't allow for variable expansion, so we use the GITHUB_ENV
@@ -82,7 +80,7 @@ jobs:
               fi
           done
       - name: report coverage to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: coverage.txt
           flags: integtests
