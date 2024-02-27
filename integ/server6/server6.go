@@ -5,19 +5,17 @@
 //go:build integration
 // +build integration
 
-package e2e_test
+package main
 
 import (
 	"fmt"
 	"log"
 	"net"
 	"runtime"
-	"testing"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/dhcpv6/client6"
 	"github.com/insomniacslk/dhcp/iana"
-	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netns"
 
 	"github.com/coredhcp/coredhcp/config"
@@ -103,8 +101,8 @@ func runClient6(nsName, iface string, modifiers ...dhcpv6.Modifier) error {
 	return cErr
 }
 
-// TestDora creates a server and attempts to connect to it
-func TestDora(t *testing.T) {
+// Create a server and run a DORA exchange with it
+func main() {
 	readyCh := make(chan struct{}, 1)
 	go runServer(readyCh,
 		"coredhcp-direct-upper",
@@ -118,11 +116,14 @@ func TestDora(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	require.NoError(t, runClient6(
+	err = runClient6(
 		"coredhcp-direct-lower", "cdhcp_cli",
 		dhcpv6.WithClientID(&dhcpv6.DUIDLL{
 			HWType:        iana.HWTypeEthernet,
 			LinkLayerAddr: mac,
 		}),
-	))
+	)
+	if err != nil {
+		panic(err)
+	}
 }

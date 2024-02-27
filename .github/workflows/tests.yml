@@ -63,24 +63,29 @@ jobs:
           cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
           ./.ci/setup-integ.sh
       - name: run integ tests
+        env:
+          GOCOVERDIR: ${{github.workspace}}/.cover
         run: |
-          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}/integ
-          go get -v -t -tags=integration ./...
-          echo "" > "${GITHUB_WORKSPACE}"/coverage.txt
-          for d in $(go list -tags=integration ./...); do
-              go test -c -tags=integration -v -race -coverprofile=profile.out -covermode=atomic "${d}"
-              testbin="./$(basename $d).test"
+          mkdir $GOCOVERDIR
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
+          go get -v -t -tags=integration ./integ/...
+          for d in integ/*; do
+              pushd "$d"
+              go build -tags=integration -race -cover -coverpkg=github.com/coredhcp/coredhcp/... .
+              testbin=$(basename $d)
+              test -x "${testbin}" || echo "::error file=${d}::missing binary for integration test ${d}"
               # only run it if it was built - i.e. if there are integ tests
-              test -x "${testbin}" && sudo "./${testbin}"
-              if [ -f profile.out ]; then
-                cat profile.out >> "${GITHUB_WORKSPACE}"/coverage.txt
-                rm profile.out
+              test -x "${testbin}" && sudo --preserve-env=GOCOVERDIR "./${testbin}"
+              if [ $? -ne 0 ]; then
+                echo "::error file=${d}::Execution of integration tests for ${d} failed"
               fi
+              popd
           done
+          go tool covdata textfmt -i=$GOCOVERDIR -o=coverage.txt
       - name: report coverage to codecov
         uses: codecov/codecov-action@v4
         with:
-          files: ${{github.workspace}}/coverage.txt
+          files: coverage.txt
           disable_search: true
           flags: integtests
           fail_ci_if_error: true
