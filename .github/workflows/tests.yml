@@ -26,21 +26,19 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
           go get -v -t ./...
-          echo "" > "${GITHUB_WORKSPACE}"/coverage.txt
-          for d in $(go list ./...); do
-              go test -v -race -coverprofile=profile.out -covermode=atomic "${d}"
-              if [ -f profile.out ]; then
-                cat profile.out >> "${GITHUB_WORKSPACE}"/coverage.txt
-                rm profile.out
-              fi
-          done
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       - name: report coverage to codecov
         uses: codecov/codecov-action@v4
         with:
           files: coverage.txt
+          disable_search: true
           flags: unittests
           fail_ci_if_error: true
           verbose: true
+          root_dir: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+          working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   integration-tests:
     runs-on: ubuntu-latest
     strategy:
@@ -82,7 +80,12 @@ jobs:
       - name: report coverage to codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.txt
+          files: ${{github.workspace}}/coverage.txt
+          disable_search: true
           flags: integtests
           fail_ci_if_error: true
           verbose: true
+          root_dir: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+          working-directory: ${{ github.workspace }}/src/github.com/${{ github.repository }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
