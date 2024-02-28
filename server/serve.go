@@ -5,6 +5,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -164,9 +165,14 @@ cleanup:
 // Wait waits until the end of the execution of the server.
 func (s *Servers) Wait() error {
 	log.Debug("Waiting")
-	err := <-s.errors
+	errs := make([]error, 1, len(s.listeners))
+	errs[0] = <-s.errors
 	s.Close()
-	return err
+	// Wait for the other listeners to close
+	for i := 1; i < len(s.listeners); i++ {
+		errs = append(errs, <-s.errors)
+	}
+	return errors.Join(errs...)
 }
 
 // Close closes all listening connections

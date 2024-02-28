@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/coredhcp/coredhcp/config"
 	"github.com/coredhcp/coredhcp/logger"
@@ -122,7 +121,6 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := srv.Wait(); err != nil {
-		log.Print(err)
+		log.Error(err)
 	}
-	time.Sleep(time.Second)
 }
