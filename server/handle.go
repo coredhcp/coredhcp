@@ -5,6 +5,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -209,7 +210,10 @@ func (l *listener6) Serve() error {
 		b = b[:MaxDatagram] //Reslice to max capacity in case the buffer in pool was resliced smaller
 
 		n, oob, peer, err := l.ReadFrom(b)
-		if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			// Server is quitting
+			return nil
+		} else if err != nil {
 			log.Printf("Error reading from connection: %v", err)
 			return err
 		}
@@ -225,7 +229,10 @@ func (l *listener4) Serve() error {
 		b = b[:MaxDatagram] //Reslice to max capacity in case the buffer in pool was resliced smaller
 
 		n, oob, peer, err := l.ReadFrom(b)
-		if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			// Server is quitting
+			return nil
+		} else if err != nil {
 			log.Printf("Error reading from connection: %v", err)
 			return err
 		}
