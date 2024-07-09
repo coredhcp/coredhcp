@@ -57,8 +57,10 @@ func ExampleAddPrefixes() {
 
 // Offset is used as a hash function, so it needs to be reasonably fast
 func BenchmarkOffset(b *testing.B) {
+	// Need predictable randomness for benchmark reproducibility
+	rng := rand.New(rand.NewSource(0))
 	addresses := make([]byte, b.N*net.IPv6len*2)
-	_, err := rand.Read(addresses)
+	_, err := rng.Read(addresses)
 	if err != nil {
 		b.Fatalf("Could not generate random addresses: %v", err)
 	}
