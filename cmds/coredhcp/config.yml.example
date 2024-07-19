@@ -131,6 +131,12 @@ server4:
         # "ParseDuration": https://golang.org/pkg/time/#ParseDuration
         - lease_time: 3600s
 
+        # vss plugin acts as file plugin, but also provides ability to distribute DHCP requests
+        # between different client networks based on VSS option provided by DHCP relay agent.
+        # Additional info available in RFC6607 - https://www.rfc-editor.org/rfc/rfc6607.html).
+        # Leases config file is getting refreshed automatically each time file is updated.
+        - vss: leases.yaml
+
         # server_id advertises a DHCP Server Identifier, to help resolve
         # situations where there are multiple DHCP servers on the network
         # - server_id: <IP address>
