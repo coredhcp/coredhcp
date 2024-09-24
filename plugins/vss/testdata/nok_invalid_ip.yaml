@@ -1,0 +1,9 @@
+vpn1000:
+  "52:69:e1:af:58:78":
+    router_id: 10.0.1.1
+    mask: 123
+    address: 10.0.1.5
+    lease_time: hello
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
