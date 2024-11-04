@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/bits-and-blooms/bitset v1.14.2
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
-	github.com/fsnotify/fsnotify v1.7.0
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/gopacket v1.1.19
 	github.com/insomniacslk/dhcp v0.0.0-20240227161007-c728f5dd21c8
 	github.com/mattn/go-sqlite3 v1.14.22
