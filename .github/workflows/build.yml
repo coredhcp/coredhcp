@@ -28,6 +28,11 @@ jobs:
           set -exu
           cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}/cmds/coredhcp
           go build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coredhcp-${{ matrix.go }}
+          path: src/github.com/${{ github.repository }}/cmds/coredhcp/coredhcp
+          if-no-files-found: error
   coredhcp-generator:
     runs-on: ubuntu-latest
     strategy:
