@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/vishvananda/netns v0.0.4
-	golang.org/x/net v0.32.0
+	golang.org/x/net v0.33.0
 )
 
 require (
