@@ -77,6 +77,17 @@ INFO[2019-01-05T22:29:21Z] DHCPv6Message
 ...
 ```
 
+## Docker
+
+There is a [Dockerfile](./Dockerfile) and a [docker-compose.yml](./docker-compose.yml).
+
+Docker compose expects a configuration file under `/etc/coredhcp/config.yaml`, and it is
+mapped to `./etc/coredhcp/config.yaml` when using `docker compose`. You can adjust the exported
+volume in `docker-compose.yml` to point to a different configuration file on the host file system.
+
+There is an example configuration file [config.yml.example](./cmds/coredhcp/config.yml.example)
+that you can use as a starting point.
+
 # Plugins
 
 CoreDHCP is heavily based on plugins: even the core functionalities are
