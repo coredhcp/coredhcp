@@ -1,0 +1,11 @@
+services:
+  coredhcp:
+    privileged: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 67:67
+      - 547:547
+    volumes:
+      - ./etc/coredhcp/:/etc/coredhcp/
