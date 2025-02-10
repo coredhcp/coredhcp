@@ -19,7 +19,7 @@ func TestOptionRequested0(t *testing.T) {
 	}
 	req.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionAutoConfigure, []byte{1}))
 	stub, err := dhcpv4.NewReplyFromRequest(req,
-	    dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
+		dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestOptionRequested1(t *testing.T) {
 	}
 	req.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionAutoConfigure, []byte{1}))
 	stub, err := dhcpv4.NewReplyFromRequest(req,
-	    dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
+		dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +77,7 @@ func TestNotRequestedAssignedIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub, err := dhcpv4.NewReplyFromRequest(req,
-	    dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
+		dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func TestNotRequestedNoIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub, err := dhcpv4.NewReplyFromRequest(req,
-	    dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
+		dhcpv4.WithMessageType(dhcpv4.MessageTypeOffer),
 	)
 	if err != nil {
 		t.Fatal(err)

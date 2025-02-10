@@ -21,12 +21,11 @@
 //
 // server6:
 //   - plugins:
-//     - nbp: http://[2001:db8:a::1]/nbp
+//   - nbp: http://[2001:db8:a::1]/nbp
 //
 // server4:
 //   - plugins:
-//     - nbp: tftp://10.0.0.254/nbp
-//
+//   - nbp: tftp://10.0.0.254/nbp
 package nbp
 
 import (
