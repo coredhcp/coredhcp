@@ -23,11 +23,11 @@ var log = logger.GetLogger("plugins/searchdomains")
 // plugins section. For searchdomains:
 //
 // server6:
-//   listen: '[::]547'
-//   - searchdomains: domain.a domain.b
-//   - server_id: LL aa:bb:cc:dd:ee:ff
-//   - file: "leases.txt"
 //
+//	listen: '[::]547'
+//	- searchdomains: domain.a domain.b
+//	- server_id: LL aa:bb:cc:dd:ee:ff
+//	- file: "leases.txt"
 var Plugin = plugins.Plugin{
 	Name:   "searchdomains",
 	Setup6: setup6,

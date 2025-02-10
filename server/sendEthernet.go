@@ -2,6 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
+//go:build linux
 // +build linux
 
 package server
@@ -16,10 +17,10 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-//this function sends an unicast to the hardware address defined in resp.ClientHWAddr,
-//the layer3 destination address is still the broadcast address;
-//iface: the interface where the DHCP message should be sent;
-//resp: DHCPv4 struct, which should be sent;
+// this function sends an unicast to the hardware address defined in resp.ClientHWAddr,
+// the layer3 destination address is still the broadcast address;
+// iface: the interface where the DHCP message should be sent;
+// resp: DHCPv4 struct, which should be sent;
 func sendEthernet(iface net.Interface, resp *dhcpv4.DHCPv4) error {
 
 	eth := layers.Ethernet{

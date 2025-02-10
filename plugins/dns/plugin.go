@@ -74,7 +74,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	return resp, false
 }
 
-//Handler4 handles DHCPv4 packets for the dns plugin
+// Handler4 handles DHCPv4 packets for the dns plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	if req.IsOptionRequested(dhcpv4.OptionDomainNameServer) {
 		resp.Options.Update(dhcpv4.OptDNS(dnsServers4...))
