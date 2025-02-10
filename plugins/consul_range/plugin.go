@@ -21,7 +21,7 @@ var log = logger.GetLogger("plugins/consulrange")
 
 // Plugin wraps plugin registration information
 var Plugin = plugins.Plugin{
-	Name:   "consul",
+	Name:   "consulrange",
 	Setup4: setupConsulRange,
 }
 
