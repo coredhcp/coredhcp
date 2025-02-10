@@ -8,6 +8,8 @@ Fast, multithreaded, modular and extensible DHCP server written in Go
 
 This is still a work-in-progress
 
+> The current fork has an additional plugin `consulrange` that allows loading and storing leases in the Consul KV store.
+
 ## Example configuration
 
 In CoreDHCP almost everything is implemented as a plugin. The order of plugins in the configuration matters: every request is evaluated calling each plugin in order, until one breaks the evaluation and responds to, or drops, the request.
