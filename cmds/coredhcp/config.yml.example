@@ -157,7 +157,7 @@ server4:
         # allocated to clients will be stored across server restarts
         # * lease duration can be given in any format understood by go's
         # "ParseDuration": https://golang.org/pkg/time/#ParseDuration
-        - range: leases.txt 10.10.10.100 10.10.10.200 60s
+        - range: leases.sqlite3 10.10.10.100 10.10.10.200 60s
 
         # staticroute advertises additional routes the client should install in
         # its routing table as described in RFC3442
