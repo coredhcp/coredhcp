@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/gopacket v1.1.19
 	github.com/insomniacslk/dhcp v0.0.0-20241203100832-a481575ed0ef
-	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/mattn/go-sqlite3 v1.14.29
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cast v1.7.1
