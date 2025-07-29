@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/bits-and-blooms/bitset v1.22.0
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/gopacket v1.1.19
 	github.com/insomniacslk/dhcp v0.0.0-20241203100832-a481575ed0ef
 	github.com/mattn/go-sqlite3 v1.14.29
