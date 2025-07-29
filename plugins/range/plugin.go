@@ -111,8 +111,8 @@ func setupRange(args ...string) (handler.Handler4, error) {
 	if ipRangeEnd.To4() == nil {
 		return nil, fmt.Errorf("invalid IPv4 address: %v", args[2])
 	}
-	if binary.BigEndian.Uint32(ipRangeStart.To4()) >= binary.BigEndian.Uint32(ipRangeEnd.To4()) {
-		return nil, errors.New("start of IP range has to be lower than the end of an IP range")
+	if binary.BigEndian.Uint32(ipRangeStart.To4()) > binary.BigEndian.Uint32(ipRangeEnd.To4()) {
+		return nil, errors.New("start of IP range has to be lower than or equal to the end of an IP range")
 	}
 
 	p.allocator, err = bitmap.NewIPv4Allocator(ipRangeStart, ipRangeEnd)
