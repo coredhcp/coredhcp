@@ -6,20 +6,20 @@
 // The mapping is stored in a text file, where each mapping is described by one line containing
 // two fields separated by spaces: MAC address, and IP address. For example:
 //
-//  $ cat file_leases.txt
-//  00:11:22:33:44:55 10.0.0.1
-//  01:23:45:67:89:01 10.0.10.10
+//	$ cat file_leases.txt
+//	00:11:22:33:44:55 10.0.0.1
+//	01:23:45:67:89:01 10.0.10.10
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
 //
-//  $ cat config.yml
+//	$ cat config.yml
 //
-//  server6:
-//     ...
-//     plugins:
-//       - file: "file_leases.txt" [autorefresh]
-//     ...
+//	server6:
+//	   ...
+//	   plugins:
+//	     - file: "file_leases.txt" [autorefresh]
+//	   ...
 //
 // If the file path is not absolute, it is relative to the cwd where coredhcp is run.
 //
@@ -186,6 +186,9 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 // Handler4 handles DHCPv4 packets for the file plugin
 func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	if req.MessageType() == dhcpv4.MessageTypeInform {
+		return resp, false
+	}
 	recLock.RLock()
 	defer recLock.RUnlock()
 
