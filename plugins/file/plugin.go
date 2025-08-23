@@ -4,22 +4,31 @@
 
 // Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// two fields separated by spaces: MAC address and IP address. For example:
 //
-//  $ cat file_leases.txt
-//  00:11:22:33:44:55 10.0.0.1
-//  01:23:45:67:89:01 10.0.10.10
+//	$ cat leases_v4.txt
+//	# IPv4 fixed addresses
+//	00:11:22:33:44:55 10.0.0.1
+//	a1:b2:c3:d4:e5:f6 10.0.10.10
+//
+//	$ cat leases_v6.txt
+//	# IPv6 fixed addresses
+//	00:11:22:33:44:55 2001:db8::10:1
+//	A1:B2:C3:D4:E5:F6 2001:db8::10:2
+//
+// Any text following '#' is a comment that is ignored. MAC addresses can be upper or lower case.
+// IPv6 addresses must use lowercase, as per RFC-5952.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
 //
-//  $ cat config.yml
+//	$ cat config.yml
 //
-//  server6:
-//     ...
-//     plugins:
-//       - file: "file_leases.txt" [autorefresh]
-//     ...
+//	server6:
+//	   ...
+//	   plugins:
+//	     - file: "file_leases.txt" [autorefresh]
+//	   ...
 //
 // If the file path is not absolute, it is relative to the cwd where coredhcp is run.
 //
@@ -82,10 +91,10 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 	records := make(map[string]net.IP)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
+		if comment := strings.IndexRune(line, '#'); comment >= 0 {
+			line = strings.TrimSpace(line[:comment])
 		}
-		if strings.HasPrefix(line, "#") {
+		if len(line) == 0 {
 			continue
 		}
 		tokens := strings.Fields(line)
@@ -118,10 +127,10 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	records := make(map[string]net.IP)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
+		if comment := strings.IndexRune(line, '#'); comment >= 0 {
+			line = strings.TrimSpace(line[:comment])
 		}
-		if strings.HasPrefix(line, "#") {
+		if len(line) == 0 {
 			continue
 		}
 		tokens := strings.Fields(line)
