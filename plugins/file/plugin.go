@@ -84,7 +84,7 @@ var (
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
-	ipAddresses := make(map[string]int)
+	addresses := make(map[string]int)
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -112,10 +112,11 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
-		ipAddresses[tokens[1]]++
+		addresses[tokens[0]]++
+		addresses[tokens[1]]++
 	}
 
-	duplicates := duplicatesAsErrors(ipAddresses)
+	duplicates := duplicatesAsErrors(addresses)
 	if len(duplicates) > 0 {
 		return nil, errors.Join(duplicates...)
 	}
@@ -128,7 +129,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // IPv6 address.
 func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
-	ipAddresses := make(map[string]int)
+	addresses := make(map[string]int)
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -156,10 +157,11 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
-		ipAddresses[tokens[1]]++
+		addresses[tokens[0]]++
+		addresses[tokens[1]]++
 	}
 
-	duplicates := duplicatesAsErrors(ipAddresses)
+	duplicates := duplicatesAsErrors(addresses)
 	if len(duplicates) > 0 {
 		return nil, errors.Join(duplicates...)
 	}
@@ -171,7 +173,7 @@ func duplicatesAsErrors(ipAddresses map[string]int) []error {
 	var duplicates []error
 	for ipAddress, count := range ipAddresses {
 		if count > 1 {
-			duplicates = append(duplicates, fmt.Errorf("IP address %s is in %d records", ipAddress, count))
+			duplicates = append(duplicates, fmt.Errorf("address %s is in %d records", ipAddress, count))
 		}
 	}
 	return duplicates

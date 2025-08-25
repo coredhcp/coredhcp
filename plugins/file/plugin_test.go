@@ -90,6 +90,24 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("duplicate MAC address", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := os.CreateTemp("", "test_plugin_file")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		// add lines with duplicate MAC addresses to trigger an error
+		_, err = tmp.WriteString(`11:11:11:11:11:11 1.2.3.4
+11:11:11:11:11:11 5.6.7.8
+`)
+		require.NoError(t, err)
+		tmp.Close()
+
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "address 11:11:11:11:11:11 is in 2 records")
+	})
+
 	t.Run("duplicate IP address", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
@@ -106,7 +124,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 		_, err = LoadDHCPv4Records(tmp.Name())
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "IP address 1.2.3.4 is in 3 records")
+		assert.Contains(t, err.Error(), "address 1.2.3.4 is in 3 records")
 	})
 
 	t.Run("lease with IPv6 address", func(t *testing.T) {
@@ -200,13 +218,31 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("duplicate MAC address", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := os.CreateTemp("", "test_plugin_file")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		// add lines with duplicate MAC addresses to trigger an error
+		_, err = tmp.WriteString(`11:11:11:11:11:11 2001:db8::10:1
+11:11:11:11:11:11 2001:db8::10:2
+`)
+		require.NoError(t, err)
+		tmp.Close()
+
+		_, err = LoadDHCPv6Records(tmp.Name())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "address 11:11:11:11:11:11 is in 2 records")
+	})
+
 	t.Run("duplicate IP address", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
 		defer os.Remove(tmp.Name())
 
-		// add line with duplicate IPv4 addresses to trigger an error
+		// add lines with duplicate IPv6 addresses to trigger an error
 		_, err = tmp.WriteString(`11:11:11:11:11:11 2001:db8::10:1
 22:22:22:22:22:22 2001:db8::10:1
 33:33:33:33:33:33 2001:db8::10:1
@@ -216,7 +252,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 		_, err = LoadDHCPv6Records(tmp.Name())
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "IP address 2001:db8::10:1 is in 3 records")
+		assert.Contains(t, err.Error(), "address 2001:db8::10:1 is in 3 records")
 	})
 
 	t.Run("lease with IPv4 address", func(t *testing.T) {
