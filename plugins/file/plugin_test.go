@@ -81,13 +81,32 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		require.NoError(t, err)
 		defer os.Remove(tmp.Name())
 
-		// add line with invalid MAC address to trigger an error
+		// add line with invalid IPv4 address to trigger an error
 		_, err = tmp.WriteString("22:33:44:55:66:77 bcde\n")
 		require.NoError(t, err)
 		tmp.Close()
 
 		_, err = LoadDHCPv4Records(tmp.Name())
 		assert.Error(t, err)
+	})
+
+	t.Run("duplicate IP address", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := os.CreateTemp("", "test_plugin_file")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		// add line with duplicate IPv4 addresses to trigger an error
+		_, err = tmp.WriteString(`11:11:11:11:11:11 1.2.3.4
+22:22:22:22:22:22 1.2.3.4
+33:33:33:33:33:33 1.2.3.4
+`)
+		require.NoError(t, err)
+		tmp.Close()
+
+		_, err = LoadDHCPv4Records(tmp.Name())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "IP address 1.2.3.4 is in 3 records")
 	})
 
 	t.Run("lease with IPv6 address", func(t *testing.T) {
@@ -179,6 +198,25 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 		_, err = LoadDHCPv6Records(tmp.Name())
 		assert.Error(t, err)
+	})
+
+	t.Run("duplicate IP address", func(t *testing.T) {
+		// setup temp leases file
+		tmp, err := os.CreateTemp("", "test_plugin_file")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+
+		// add line with duplicate IPv4 addresses to trigger an error
+		_, err = tmp.WriteString(`11:11:11:11:11:11 2001:db8::10:1
+22:22:22:22:22:22 2001:db8::10:1
+33:33:33:33:33:33 2001:db8::10:1
+`)
+		require.NoError(t, err)
+		tmp.Close()
+
+		_, err = LoadDHCPv6Records(tmp.Name())
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "IP address 2001:db8::10:1 is in 3 records")
 	})
 
 	t.Run("lease with IPv4 address", func(t *testing.T) {
