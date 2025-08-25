@@ -4,22 +4,33 @@
 
 // Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// two fields separated by spaces: MAC address and IP address. For example:
 //
-//  $ cat file_leases.txt
-//  00:11:22:33:44:55 10.0.0.1
-//  01:23:45:67:89:01 10.0.10.10
+//	$ cat leases_v4.txt
+//	# IPv4 fixed addresses
+//	00:11:22:33:44:55 10.0.0.1
+//	a1:b2:c3:d4:e5:f6 10.0.10.10  # lowercase is permitted
+//
+//	$ cat leases_v6.txt
+//	# IPv6 fixed addresses
+//	00:11:22:33:44:55 2001:db8::10:1
+//	A1:B2:C3:D4:E5:F6 2001:db8::10:2  # uppercase is only permitted for MAC
+//
+// Any text following '#' is a comment that is ignored. MAC addresses can be upper or lower case.
+// IPv6 addresses must use lowercase, as per RFC-5952.
+//
+// Each MAC or IP address must be unique within the file.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
 //
-//  $ cat config.yml
+//	$ cat config.yml
 //
-//  server6:
-//     ...
-//     plugins:
-//       - file: "file_leases.txt" [autorefresh]
-//     ...
+//	server6:
+//	   ...
+//	   plugins:
+//	     - file: "file_leases.txt" [autorefresh]
+//	   ...
 //
 // If the file path is not absolute, it is relative to the cwd where coredhcp is run.
 //
@@ -75,17 +86,19 @@ var (
 // IPv4 address.
 func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
+	addresses := make(map[string]int)
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
+
 	records := make(map[string]net.IP)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
+		if comment := strings.IndexRune(line, '#'); comment >= 0 {
+			line = strings.TrimSpace(line[:comment])
 		}
-		if strings.HasPrefix(line, "#") {
+		if len(line) == 0 {
 			continue
 		}
 		tokens := strings.Fields(line)
@@ -101,6 +114,13 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
+		addresses[tokens[0]]++
+		addresses[tokens[1]]++
+	}
+
+	duplicates := duplicatesAsErrors(addresses)
+	if len(duplicates) > 0 {
+		return nil, errors.Join(duplicates...)
 	}
 
 	return records, nil
@@ -111,17 +131,19 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 // IPv6 address.
 func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 	log.Infof("reading leases from %s", filename)
+	addresses := make(map[string]int)
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
+
 	records := make(map[string]net.IP)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
+		if comment := strings.IndexRune(line, '#'); comment >= 0 {
+			line = strings.TrimSpace(line[:comment])
 		}
-		if strings.HasPrefix(line, "#") {
+		if len(line) == 0 {
 			continue
 		}
 		tokens := strings.Fields(line)
@@ -137,8 +159,26 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
+		addresses[tokens[0]]++
+		addresses[tokens[1]]++
 	}
+
+	duplicates := duplicatesAsErrors(addresses)
+	if len(duplicates) > 0 {
+		return nil, errors.Join(duplicates...)
+	}
+
 	return records, nil
+}
+
+func duplicatesAsErrors(ipAddresses map[string]int) []error {
+	var duplicates []error
+	for ipAddress, count := range ipAddresses {
+		if count > 1 {
+			duplicates = append(duplicates, fmt.Errorf("address %s is in %d records", ipAddress, count))
+		}
+	}
+	return duplicates
 }
 
 // Handler6 handles DHCPv6 packets for the file plugin
