@@ -97,15 +97,15 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		defer os.Remove(tmp.Name())
 
 		// add lines with duplicate MAC addresses to trigger an error
-		_, err = tmp.WriteString(`11:11:11:11:11:11 1.2.3.4
-11:11:11:11:11:11 5.6.7.8
+		_, err = tmp.WriteString(`aa:11:11:11:11:11 1.2.3.4
+AA:11:11:11:11:11 5.6.7.8
 `)
 		require.NoError(t, err)
 		tmp.Close()
 
 		_, err = LoadDHCPv4Records(tmp.Name())
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "address 11:11:11:11:11:11 is in 2 records")
+		assert.Contains(t, err.Error(), "address aa:11:11:11:11:11 is in 2 records")
 	})
 
 	t.Run("duplicate IP address", func(t *testing.T) {
@@ -225,15 +225,15 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		defer os.Remove(tmp.Name())
 
 		// add lines with duplicate MAC addresses to trigger an error
-		_, err = tmp.WriteString(`11:11:11:11:11:11 2001:db8::10:1
-11:11:11:11:11:11 2001:db8::10:2
+		_, err = tmp.WriteString(`aa:11:11:11:11:11 2001:db8::10:1
+AA:11:11:11:11:11 2001:db8::10:2
 `)
 		require.NoError(t, err)
 		tmp.Close()
 
 		_, err = LoadDHCPv6Records(tmp.Name())
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "address 11:11:11:11:11:11 is in 2 records")
+		assert.Contains(t, err.Error(), "address aa:11:11:11:11:11 is in 2 records")
 	})
 
 	t.Run("duplicate IP address", func(t *testing.T) {

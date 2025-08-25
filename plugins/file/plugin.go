@@ -114,7 +114,7 @@ func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
-		addresses[tokens[0]]++
+		addresses[strings.ToLower(tokens[0])]++
 		addresses[tokens[1]]++
 	}
 
@@ -159,7 +159,7 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
 		}
 		records[hwaddr.String()] = ipaddr
-		addresses[tokens[0]]++
+		addresses[strings.ToLower(tokens[0])]++
 		addresses[tokens[1]]++
 	}
 
