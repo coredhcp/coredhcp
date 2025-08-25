@@ -9,15 +9,17 @@
 //	$ cat leases_v4.txt
 //	# IPv4 fixed addresses
 //	00:11:22:33:44:55 10.0.0.1
-//	a1:b2:c3:d4:e5:f6 10.0.10.10
+//	a1:b2:c3:d4:e5:f6 10.0.10.10  # lowercase is permitted
 //
 //	$ cat leases_v6.txt
 //	# IPv6 fixed addresses
 //	00:11:22:33:44:55 2001:db8::10:1
-//	A1:B2:C3:D4:E5:F6 2001:db8::10:2
+//	A1:B2:C3:D4:E5:F6 2001:db8::10:2  # uppercase is only permitted for MAC
 //
 // Any text following '#' is a comment that is ignored. MAC addresses can be upper or lower case.
 // IPv6 addresses must use lowercase, as per RFC-5952.
+//
+// Each MAC or IP address must be unique within the file.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
