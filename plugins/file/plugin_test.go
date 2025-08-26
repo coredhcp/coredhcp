@@ -6,6 +6,7 @@ package file
 
 import (
 	"net"
+	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -38,15 +39,15 @@ func TestLoadDHCPv4Records(t *testing.T) {
 
 		if assert.Equal(t, 2, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:aa") {
-				assert.Equal(t, net.ParseIP("192.0.2.100"), records["00:11:22:33:44:aa"])
+				assert.Equal(t, netip.MustParseAddr("192.0.2.100"), records["00:11:22:33:44:aa"])
 			}
 			if assert.Contains(t, records, "11:bb:33:dd:55:ff") {
-				assert.Equal(t, net.ParseIP("192.0.2.101"), records["11:bb:33:dd:55:ff"])
+				assert.Equal(t, netip.MustParseAddr("192.0.2.101"), records["11:bb:33:dd:55:ff"])
 			}
 		}
 	})
 
-	t.Run("missing field", func(t *testing.T) {
+	t.Run("missing field should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -61,7 +62,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("invalid MAC", func(t *testing.T) {
+	t.Run("invalid MAC address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		defer os.Remove(tmp.Name())
@@ -75,7 +76,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("invalid IP address", func(t *testing.T) {
+	t.Run("invalid IP address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -90,7 +91,7 @@ func TestLoadDHCPv4Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("duplicate MAC address", func(t *testing.T) {
+	t.Run("duplicate MAC address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -108,7 +109,7 @@ AA:11:11:11:11:11 5.6.7.8
 		assert.Contains(t, err.Error(), "address aa:11:11:11:11:11 is in 2 records")
 	})
 
-	t.Run("duplicate IP address", func(t *testing.T) {
+	t.Run("duplicate IP address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -127,7 +128,7 @@ AA:11:11:11:11:11 5.6.7.8
 		assert.Contains(t, err.Error(), "address 1.2.3.4 is in 3 records")
 	})
 
-	t.Run("lease with IPv6 address", func(t *testing.T) {
+	t.Run("lease with IPv6 address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -165,15 +166,15 @@ func TestLoadDHCPv6Records(t *testing.T) {
 
 		if assert.Equal(t, 2, len(records)) {
 			if assert.Contains(t, records, "00:11:22:33:44:aa") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:1"), records["00:11:22:33:44:aa"])
+				assert.Equal(t, netip.MustParseAddr("2001:db8::10:1"), records["00:11:22:33:44:aa"])
 			}
 			if assert.Contains(t, records, "11:bb:33:dd:55:ff") {
-				assert.Equal(t, net.ParseIP("2001:db8::10:2"), records["11:bb:33:dd:55:ff"])
+				assert.Equal(t, netip.MustParseAddr("2001:db8::10:2"), records["11:bb:33:dd:55:ff"])
 			}
 		}
 	})
 
-	t.Run("missing field", func(t *testing.T) {
+	t.Run("missing field should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -188,7 +189,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("invalid MAC", func(t *testing.T) {
+	t.Run("invalid MAC address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -203,7 +204,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("invalid IP address", func(t *testing.T) {
+	t.Run("invalid IP address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -218,7 +219,7 @@ func TestLoadDHCPv6Records(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("duplicate MAC address", func(t *testing.T) {
+	t.Run("duplicate MAC address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -236,7 +237,7 @@ AA:11:11:11:11:11 2001:db8::10:2
 		assert.Contains(t, err.Error(), "address aa:11:11:11:11:11 is in 2 records")
 	})
 
-	t.Run("duplicate IP address", func(t *testing.T) {
+	t.Run("duplicate IP address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -255,7 +256,7 @@ AA:11:11:11:11:11 2001:db8::10:2
 		assert.Contains(t, err.Error(), "address 2001:db8::10:1 is in 3 records")
 	})
 
-	t.Run("lease with IPv4 address", func(t *testing.T) {
+	t.Run("lease with IPv4 address should raise error", func(t *testing.T) {
 		// setup temp leases file
 		tmp, err := os.CreateTemp("", "test_plugin_file")
 		require.NoError(t, err)
@@ -274,7 +275,7 @@ AA:11:11:11:11:11 2001:db8::10:2
 func TestHandler4(t *testing.T) {
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv4 request
-		mac := "00:11:22:33:44:55"
+		mac := "aa:11:22:33:44:55"
 		claddr, _ := net.ParseMAC(mac)
 		req := &dhcpv4.DHCPv4{
 			ClientHWAddr: claddr,
@@ -292,7 +293,7 @@ func TestHandler4(t *testing.T) {
 
 	t.Run("known MAC", func(t *testing.T) {
 		// prepare DHCPv4 request
-		mac := "00:11:22:33:44:55"
+		mac := "aa:11:22:33:44:55"
 		claddr, _ := net.ParseMAC(mac)
 		req := &dhcpv4.DHCPv4{
 			ClientHWAddr: claddr,
@@ -301,8 +302,8 @@ func TestHandler4(t *testing.T) {
 		assert.Nil(t, resp.ClientIPAddr)
 
 		// add lease for the MAC in the lease map
-		clIPAddr := net.ParseIP("192.0.2.100")
-		StaticRecords = map[string]net.IP{
+		clIPAddr := netip.MustParseAddr("192.0.2.100")
+		StaticRecords = map[string]netip.Addr{
 			mac: clIPAddr,
 		}
 
@@ -311,17 +312,17 @@ func TestHandler4(t *testing.T) {
 		result, stop := Handler4(req, resp)
 		assert.Same(t, result, resp)
 		assert.True(t, stop)
-		assert.Equal(t, clIPAddr, result.YourIPAddr)
+		assert.Equal(t, net.IP(clIPAddr.AsSlice()), result.YourIPAddr)
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		StaticRecords = make(map[string]netip.Addr)
 	})
 }
 
 func TestHandler6(t *testing.T) {
 	t.Run("unknown MAC", func(t *testing.T) {
 		// prepare DHCPv6 request
-		mac := "11:22:33:44:55:66"
+		mac := "aa:11:22:33:44:55"
 		claddr, _ := net.ParseMAC(mac)
 		req, err := dhcpv6.NewSolicit(claddr)
 		require.NoError(t, err)
@@ -338,7 +339,7 @@ func TestHandler6(t *testing.T) {
 
 	t.Run("known MAC", func(t *testing.T) {
 		// prepare DHCPv6 request
-		mac := "11:22:33:44:55:66"
+		mac := "aa:11:22:33:44:55"
 		claddr, _ := net.ParseMAC(mac)
 		req, err := dhcpv6.NewSolicit(claddr)
 		require.NoError(t, err)
@@ -347,8 +348,8 @@ func TestHandler6(t *testing.T) {
 		assert.Equal(t, 0, len(resp.GetOption(dhcpv6.OptionIANA)))
 
 		// add lease for the MAC in the lease map
-		clIPAddr := net.ParseIP("2001:db8::10:1")
-		StaticRecords = map[string]net.IP{
+		clIPAddr := netip.MustParseAddr("2001:db8::10:1")
+		StaticRecords = map[string]netip.Addr{
 			mac: clIPAddr,
 		}
 
@@ -362,7 +363,7 @@ func TestHandler6(t *testing.T) {
 		}
 
 		// cleanup
-		StaticRecords = make(map[string]net.IP)
+		StaticRecords = make(map[string]netip.Addr)
 	})
 }
 
@@ -391,7 +392,7 @@ func TestSetupFile(t *testing.T) {
 	}()
 
 	t.Run("typical case", func(t *testing.T) {
-		_, err = tmp.WriteString("00:11:22:33:44:55 2001:db8::10:1\n")
+		_, err = tmp.WriteString("aa:11:22:33:44:55 2001:db8::10:1\n")
 		require.NoError(t, err)
 		_, err = tmp.WriteString("11:22:33:44:55:66 2001:db8::10:2\n")
 		require.NoError(t, err)

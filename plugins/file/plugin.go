@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-// Package file enables static mapping of MAC <--> IP addresses.
+// Package file enables static maKpping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
 // two fields separated by spaces: MAC address and IP address. For example:
 //
@@ -43,6 +43,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -72,72 +73,40 @@ var Plugin = plugins.Plugin{
 var recLock sync.RWMutex
 
 // StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
-
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+var StaticRecords map[string]netip.Addr
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
-	log.Infof("reading leases from %s", filename)
-	addresses := make(map[string]int)
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	records := make(map[string]net.IP)
-	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
-		line := string(lineBytes)
-		if comment := strings.IndexRune(line, '#'); comment >= 0 {
-			line = strings.TrimSpace(line[:comment])
-		}
-		if len(line) == 0 {
-			continue
-		}
-		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
-		}
-		hwaddr, err := net.ParseMAC(tokens[0])
-		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
-		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
-		}
-		records[hwaddr.String()] = ipaddr
-		addresses[strings.ToLower(tokens[0])]++
-		addresses[tokens[1]]++
-	}
-
-	duplicates := duplicatesAsErrors(addresses)
-	if len(duplicates) > 0 {
-		return nil, errors.Join(duplicates...)
-	}
-
-	return records, nil
+func LoadDHCPv4Records(filename string) (map[string]netip.Addr, error) {
+	return loadDHCPRecords(filename, 4,
+		func(ip netip.Addr) bool {
+			return ip.Is4()
+		})
 }
 
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
-	log.Infof("reading leases from %s", filename)
+func LoadDHCPv6Records(filename string) (map[string]netip.Addr, error) {
+	return loadDHCPRecords(filename, 6,
+		func(ip netip.Addr) bool {
+			return ip.Is6()
+		})
+}
+
+// loadDHCPRecords loads the MAC<->IP mappings with records stored on
+// the specified file. The records have to be one per line, a mac address and an
+// IP address.
+func loadDHCPRecords(filename string, protVer int, check func(netip.Addr) bool) (map[string]netip.Addr, error) {
+	log.Infof("reading IPv%d leases from %s", protVer, filename)
 	addresses := make(map[string]int)
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make(map[string]net.IP)
+	records := make(map[string]netip.Addr)
 	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
 		line := string(lineBytes)
 		if comment := strings.IndexRune(line, '#'); comment >= 0 {
@@ -154,10 +123,14 @@ func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
 		if err != nil {
 			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
 		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To16() == nil || ipaddr.To4() != nil {
-			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
+		ipaddr, err := netip.ParseAddr(tokens[1])
+		if err != nil {
+			return nil, fmt.Errorf("expected an IPv%d address, got: %s", protVer, tokens[1])
 		}
+		if !check(ipaddr) {
+			return nil, fmt.Errorf("expected an IPv%d address, got: %s", protVer, ipaddr)
+		}
+		// note that net.HardwareAddr.String() uses lowercase hexadecimal
 		records[hwaddr.String()] = ipaddr
 		addresses[strings.ToLower(tokens[0])]++
 		addresses[tokens[1]]++
@@ -203,18 +176,19 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
+	// note that net.HardwareAddr.String() uses lowercase hexadecimal
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
 		log.Infof("MAC address %s is unknown", mac)
 		return resp, false
 	}
-	log.Debugf("MAC address %s given IP address %s", mac, ipaddr)
+	log.Printf("MAC address %s given IP address %s", mac, ipaddr)
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
-				IPv6Addr:          ipaddr,
+				IPv6Addr:          ipaddr.AsSlice(),
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
@@ -228,13 +202,14 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 	recLock.RLock()
 	defer recLock.RUnlock()
 
+	// note that net.HardwareAddr.String() uses lowercase hexadecimal
 	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
 		log.Infof("MAC address %s is unknown", req.ClientHWAddr)
 		return resp, false
 	}
-	resp.YourIPAddr = ipaddr
-	log.Debugf("MAC address %s given IP address %s", req.ClientHWAddr, ipaddr)
+	resp.YourIPAddr = ipaddr.AsSlice()
+	log.Printf("MAC address %s given IP address %s", req.ClientHWAddr, ipaddr)
 	return resp, true
 }
 
@@ -299,7 +274,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 func loadFromFile(v6 bool, filename string) error {
 	var err error
-	var records map[string]net.IP
+	var records map[string]netip.Addr
 	var protver int
 	if v6 {
 		protver = 6
