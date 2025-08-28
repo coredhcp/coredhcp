@@ -2,7 +2,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-// Package file enables static maKpping of MAC <--> IP addresses.
+// Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
 // two fields separated by spaces: MAC address and IP address. For example:
 //
@@ -36,6 +36,8 @@
 //
 // Optionally, when the 'autorefresh' argument is given, the plugin will try to refresh
 // the lease mapping during runtime whenever the lease file is updated.
+//
+// Note that the file plugin must come after any general plugins needed, e.g. dns or router.
 package file
 
 import (
