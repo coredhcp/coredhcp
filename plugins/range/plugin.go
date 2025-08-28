@@ -29,10 +29,10 @@ var Plugin = plugins.Plugin{
 	Setup4: setupRange,
 }
 
-//Record holds an IP lease record
+// Record holds an IP lease record
 type Record struct {
-	IP      net.IP
-	expires int
+	IP       net.IP
+	expires  int
 	hostname string
 }
 
@@ -49,44 +49,48 @@ type PluginState struct {
 
 // Handler4 handles DHCPv4 packets for the range plugin
 func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+	macAddr := req.ClientHWAddr.String()
+	expires := time.Now().Add(p.LeaseTime)
+
 	p.Lock()
 	defer p.Unlock()
-	record, ok := p.Recordsv4[req.ClientHWAddr.String()]
+
+	record, ok := p.Recordsv4[macAddr]
 	hostname := req.HostName()
 	if !ok {
 		// Allocating new address since there isn't one allocated
-		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
+		log.Printf("MAC address %s is new, leasing new IPv4 address", macAddr)
 		ip, err := p.allocator.Allocate(net.IPNet{})
 		if err != nil {
-			log.Errorf("Could not allocate IP for MAC %s: %v", req.ClientHWAddr.String(), err)
+			log.Errorf("Could not allocate IP for MAC %s: %v", macAddr, err)
 			return nil, true
 		}
 		rec := Record{
-			IP:      ip.IP.To4(),
-			expires: int(time.Now().Add(p.LeaseTime).Unix()),
+			IP:       ip.IP.To4(),
+			expires:  int(expires.Unix()),
 			hostname: hostname,
 		}
 		err = p.saveIPAddress(req.ClientHWAddr, &rec)
 		if err != nil {
-			log.Errorf("SaveIPAddress for MAC %s failed: %v", req.ClientHWAddr.String(), err)
+			log.Errorf("SaveIPAddress for MAC %s failed: %v", macAddr, err)
 		}
-		p.Recordsv4[req.ClientHWAddr.String()] = &rec
+		p.Recordsv4[macAddr] = &rec
 		record = &rec
 	} else {
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		expiry := time.Unix(int64(record.expires), 0)
-		if expiry.Before(time.Now().Add(p.LeaseTime)) {
-			record.expires = int(time.Now().Add(p.LeaseTime).Round(time.Second).Unix())
+		if expiry.Before(expires) {
+			record.expires = int(expires.Round(time.Second).Unix())
 			record.hostname = hostname
 			err := p.saveIPAddress(req.ClientHWAddr, record)
 			if err != nil {
-				log.Errorf("Could not persist lease for MAC %s: %v", req.ClientHWAddr.String(), err)
+				log.Errorf("Could not persist lease for MAC %s: %v", macAddr, err)
 			}
 		}
 	}
 	resp.YourIPAddr = record.IP
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(p.LeaseTime.Round(time.Second)))
-	log.Printf("found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
+	log.Printf("MAC address %s given IP address %s", macAddr, record.IP)
 	return resp, false
 }
 
