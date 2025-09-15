@@ -13,7 +13,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.29
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cast v1.7.1
+	github.com/spf13/cast v1.10.0
 	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
