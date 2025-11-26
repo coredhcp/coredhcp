@@ -99,25 +99,19 @@ func TestWriteRecords(t *testing.T) {
 }
 
 func TestFreeIPAddress(t *testing.T) {
-	pl := PluginState{}
-	if err := pl.registerBackingDB(":memory:"); err != nil {
-		t.Fatalf("Could not setup file")
+	db, err := testDBSetup()
+	if err != nil {
+		t.Fatalf("Failed to set up test DB: %v", err)
 	}
 
-	hwaddr, err := net.ParseMAC("02:00:00:00:00:01")
+	pl := PluginState{leasedb: db}
+
+	hwaddr, err := net.ParseMAC(records[1].mac)
 	if err != nil {
 		t.Fatalf("Failed to parse MAC address: %v", err)
 	}
 
-	record := &Record{
-		IP:       net.IPv4(10, 0, 0, 1),
-		expires:  expire,
-		hostname: "test-host",
-	}
-
-	if err := pl.saveIPAddress(hwaddr, record); err != nil {
-		t.Fatalf("Failed to save IP address: %v", err)
-	}
+	record := records[1].ip
 
 	parsedRecords, err := loadRecords(pl.leasedb)
 	if err != nil {
@@ -167,41 +161,22 @@ func TestFreeIPAddressNonExistent(t *testing.T) {
 }
 
 func TestFreeIPAddressVerifyDeletion(t *testing.T) {
-	pl := PluginState{}
-	if err := pl.registerBackingDB(":memory:"); err != nil {
-		t.Fatalf("Could not setup file")
+	db, err := testDBSetup()
+	if err != nil {
+		t.Fatalf("Failed to set up test DB: %v", err)
 	}
 
-	// Save multiple records to the database
-	records := []struct {
-		mac    string
-		record *Record
-	}{
-		{"02:00:00:00:00:01", &Record{IP: net.IPv4(10, 0, 0, 1), expires: expire, hostname: "host1"}},
-		{"02:00:00:00:00:02", &Record{IP: net.IPv4(10, 0, 0, 2), expires: expire, hostname: "host2"}},
-		{"02:00:00:00:00:03", &Record{IP: net.IPv4(10, 0, 0, 3), expires: expire, hostname: "host3"}},
-	}
+	pl := PluginState{leasedb: db}
 
-	for _, rec := range records {
-		hwaddr, err := net.ParseMAC(rec.mac)
-		if err != nil {
-			t.Fatalf("Failed to parse MAC address %s: %v", rec.mac, err)
-		}
-		if err := pl.saveIPAddress(hwaddr, rec.record); err != nil {
-			t.Fatalf("Failed to save IP address for %s: %v", rec.mac, err)
-		}
-	}
-
-	// Verify all records exist
 	parsedRecords, err := loadRecords(pl.leasedb)
 	if err != nil {
 		t.Fatalf("Failed to load records: %v", err)
 	}
-	assert.Len(t, parsedRecords, 3, "Should have 3 records before deletion")
+	assert.Len(t, parsedRecords, 6, "Should have 6 records from testDBSetup")
 
-	// Delete the middle record
-	hwaddrToDelete, _ := net.ParseMAC("02:00:00:00:00:02")
-	recordToDelete := records[1].record
+	// Delete the middle record (records[2] = "02:00:00:00:00:02" with IP 10.0.0.2)
+	hwaddrToDelete, _ := net.ParseMAC(records[2].mac)
+	recordToDelete := records[2].ip
 
 	if err := pl.freeIPAddress(hwaddrToDelete, recordToDelete); err != nil {
 		t.Errorf("Failed to free IP address: %v", err)
@@ -212,11 +187,12 @@ func TestFreeIPAddressVerifyDeletion(t *testing.T) {
 		t.Fatalf("Failed to load records after deletion: %v", err)
 	}
 
-	assert.Len(t, parsedRecords, 2, "Should have 2 records after deletion")
+	assert.Len(t, parsedRecords, 5, "Should have 5 records after deletion")
 	_, exists := parsedRecords[hwaddrToDelete.String()]
 	assert.False(t, exists, "Deleted record should not exist")
 
-	otherMacs := []string{"02:00:00:00:00:01", "02:00:00:00:00:03"}
+	// Verify some other records still exist
+	otherMacs := []string{records[1].mac, records[3].mac}
 	for _, mac := range otherMacs {
 		_, exists := parsedRecords[mac]
 		assert.True(t, exists, "Other records should still exist: %s", mac)

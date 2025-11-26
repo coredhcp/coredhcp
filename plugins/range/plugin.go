@@ -53,6 +53,11 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	defer p.Unlock()
 	record, ok := p.Recordsv4[req.ClientHWAddr.String()]
 	hostname := req.HostName()
+
+	if ok && req.MessageType() == dhcpv4.MessageTypeRelease {
+		return p.handleRelease(req, resp, record)
+	}
+
 	if !ok {
 		// Allocating new address since there isn't one allocated
 		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
@@ -72,23 +77,6 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		}
 		p.Recordsv4[req.ClientHWAddr.String()] = &rec
 		record = &rec
-	} else if req.MessageType() == dhcpv4.MessageTypeRelease {
-		// Release the IP address from allocator
-		if freeErr := p.allocator.Free(net.IPNet{IP: record.IP}); freeErr != nil {
-			log.Errorf("Could not free IP %s for MAC %s: %v", record.IP.String(), req.ClientHWAddr.String(), freeErr)
-			return resp, false
-		}
-
-		// Remove from in-memory map
-		delete(p.Recordsv4, req.ClientHWAddr.String())
-
-		// Remove lease from storage
-		if freeErr := p.freeIPAddress(req.ClientHWAddr, record); freeErr != nil {
-			log.Errorf("Could not remove lease from storage for MAC %s: %v", req.ClientHWAddr.String(), freeErr)
-		}
-
-		log.Printf("Released IP address %s for MAC %s", record.IP.String(), req.ClientHWAddr.String())
-		return resp, false
 	} else {
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		expiry := time.Unix(int64(record.expires), 0)
@@ -105,6 +93,26 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 	resp.Options.Update(dhcpv4.OptIPAddressLeaseTime(p.LeaseTime.Round(time.Second)))
 	log.Printf("found IP address %s for MAC %s", record.IP, req.ClientHWAddr.String())
 	return resp, false
+}
+
+func (p *PluginState) handleRelease(req, _ *dhcpv4.DHCPv4, record *Record) (*dhcpv4.DHCPv4, bool) {
+	// Remove lease from storage
+	if freeErr := p.freeIPAddress(req.ClientHWAddr, record); freeErr != nil {
+		log.Errorf("Could not remove lease from storage for MAC %s: %v", req.ClientHWAddr.String(), freeErr)
+		return nil, true
+	}
+
+	// Remove from in-memory map
+	delete(p.Recordsv4, req.ClientHWAddr.String())
+
+	// Release the IP address from allocator
+	if freeErr := p.allocator.Free(net.IPNet{IP: record.IP}); freeErr != nil {
+		log.Errorf("Could not free IP %s for MAC %s: %v", record.IP.String(), req.ClientHWAddr.String(), freeErr)
+		return nil, true
+	}
+
+	log.Printf("Released IP address %s for MAC %s", record.IP.String(), req.ClientHWAddr.String())
+	return nil, true
 }
 
 func setupRange(args ...string) (handler.Handler4, error) {
