@@ -72,6 +72,23 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		}
 		p.Recordsv4[req.ClientHWAddr.String()] = &rec
 		record = &rec
+	} else if req.MessageType() == dhcpv4.MessageTypeRelease {
+		// Release the IP address from allocator
+		if freeErr := p.allocator.Free(net.IPNet{IP: record.IP}); freeErr != nil {
+			log.Errorf("Could not free IP %s for MAC %s: %v", record.IP.String(), req.ClientHWAddr.String(), freeErr)
+			return resp, false
+		}
+
+		// Remove from in-memory map
+		delete(p.Recordsv4, req.ClientHWAddr.String())
+
+		// Remove lease from storage
+		if freeErr := p.freeIPAddress(req.ClientHWAddr, record); freeErr != nil {
+			log.Errorf("Could not remove lease from storage for MAC %s: %v", req.ClientHWAddr.String(), freeErr)
+		}
+
+		log.Printf("Released IP address %s for MAC %s", record.IP.String(), req.ClientHWAddr.String())
+		return resp, false
 	} else {
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		expiry := time.Unix(int64(record.expires), 0)

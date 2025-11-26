@@ -76,6 +76,22 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 	return nil
 }
 
+// freeIPAddress removes a lease from storage
+func (p *PluginState) freeIPAddress(mac net.HardwareAddr, record *Record) error {
+	stmt, err := p.leasedb.Prepare(`delete from leases4 where mac = ? and ip = ?`)
+	if err != nil {
+		return fmt.Errorf("statement preparation failed: %w", err)
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(
+		mac.String(),
+		record.IP.String(),
+	); err != nil {
+		return fmt.Errorf("record delete failed: %w", err)
+	}
+	return nil
+}
+
 // registerBackingDB installs a database connection string as the backing store for leases
 func (p *PluginState) registerBackingDB(filename string) error {
 	if p.leasedb != nil {
