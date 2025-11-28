@@ -198,3 +198,44 @@ func TestFreeIPAddressVerifyDeletion(t *testing.T) {
 		assert.True(t, exists, "Other records should still exist: %s", mac)
 	}
 }
+
+func TestFreeIPAddressExecutionError(t *testing.T) {
+	// This test triggers a statement execution failure using a SQLite trigger
+	// that aborts DELETE operations for records[0]
+
+	db, err := testDBSetup()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	defer db.Close()
+
+	const triggerErrorMsg = "Custom deletion prevention trigger"
+	// Create a trigger that will cause DELETE operations to fail for records[0]
+	triggerSQL := fmt.Sprintf(`
+		CREATE TRIGGER prevent_delete
+		BEFORE DELETE ON leases4
+		WHEN OLD.mac = '%s'
+		BEGIN
+			SELECT RAISE(ABORT, '%s');
+		END
+	`, records[0].mac, triggerErrorMsg)
+	_, err = db.Exec(triggerSQL)
+	if err != nil {
+		t.Fatalf("Failed to create trigger: %v", err)
+	}
+
+	pl := PluginState{leasedb: db}
+
+	hwaddr, err := net.ParseMAC(records[0].mac)
+	if err != nil {
+		t.Fatalf("Failed to parse MAC address: %v", err)
+	}
+
+	record := records[0].ip
+
+	err = pl.freeIPAddress(hwaddr, record)
+
+	assert.Error(t, err, "Should return error due to trigger preventing deletion")
+	assert.Contains(t, err.Error(), "record delete failed", "Error should indicate record delete failure")
+	assert.Contains(t, err.Error(), triggerErrorMsg, "Error should contain trigger message")
+}
