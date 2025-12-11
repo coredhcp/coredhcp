@@ -47,6 +47,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -138,22 +139,24 @@ func loadDHCPRecords(filename string, protVer int, check func(netip.Addr) bool) 
 		addresses[tokens[1]]++
 	}
 
-	duplicates := duplicatesAsErrors(addresses)
-	if len(duplicates) > 0 {
-		return nil, errors.Join(duplicates...)
-	}
+	duplicatesWarning(addresses)
 
 	return records, nil
 }
 
-func duplicatesAsErrors(ipAddresses map[string]int) []error {
-	var duplicates []error
+func duplicatesWarning(ipAddresses map[string]int) {
+	var duplicates []string
 	for ipAddress, count := range ipAddresses {
 		if count > 1 {
-			duplicates = append(duplicates, fmt.Errorf("address %s is in %d records", ipAddress, count))
+			duplicates = append(duplicates, fmt.Sprintf("Address %s is in %d records", ipAddress, count))
 		}
 	}
-	return duplicates
+
+	sort.Strings(duplicates)
+
+	for _, warning := range duplicates {
+		log.Warningf(warning)
+	}
 }
 
 // Handler6 handles DHCPv6 packets for the file plugin
