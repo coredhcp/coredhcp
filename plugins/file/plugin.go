@@ -4,38 +4,59 @@
 
 // Package file enables static mapping of MAC <--> IP addresses.
 // The mapping is stored in a text file, where each mapping is described by one line containing
-// two fields separated by spaces: MAC address, and IP address. For example:
+// two fields separated by whitespace: MAC address and IP address. For example:
 //
-//  $ cat file_leases.txt
-//  00:11:22:33:44:55 10.0.0.1
-//  01:23:45:67:89:01 10.0.10.10
+//	$ cat leases_v4.txt
+//	# IPv4 fixed addresses
+//	00:11:22:33:44:55 10.0.0.1
+//	a1:b2:c3:d4:e5:f6 10.0.10.10  # lowercase is permitted
+//
+//	$ cat leases_v6.txt
+//	# IPv6 fixed addresses
+//	00:11:22:33:44:55 2001:db8::10:1
+//	A1:B2:C3:D4:E5:F6 2001:db8::10:2
+//
+// Any text following '#' is a comment that is ignored.
+//
+// MAC addresses can be upper or lower case. IPv6 addresses should use lowercase, as per RFC-5952.
+//
+// Each MAC or IP address should normally be unique within the file. Warnings will be logged for
+// any duplicates.
 //
 // To specify the plugin configuration in the server6/server4 sections of the config file, just
 // pass the leases file name as plugin argument, e.g.:
 //
-//  $ cat config.yml
+//	$ cat config.yml
 //
-//  server6:
-//     ...
-//     plugins:
-//       - file: "file_leases.txt" [autorefresh]
-//     ...
+//	server6:
+//	   ...
+//	   plugins:
+//	     - file: "file_leases.txt" [autorefresh]
+//	   ...
 //
 // If the file path is not absolute, it is relative to the cwd where coredhcp is run.
 //
-// Optionally, when the 'autorefresh' argument is given, the plugin will try to refresh
-// the lease mapping during runtime whenever the lease file is updated.
+// The optional keyword 'autorefresh' can be used as shown, or it can be omitted. When
+// present, the plugin will try to refresh the lease mapping during runtime whenever
+// the lease file is updated.
+//
+// For DHCPv4 `server4`, note that the file plugin must come after any general plugins
+// needed, e.g. dns or router. The order is unimportant for DHCPv6, but will affect the
+// order of options in the DHCPv6 response.
 package file
 
 import (
-	"bytes"
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/coredhcp/coredhcp/handler"
 	"github.com/coredhcp/coredhcp/logger"
@@ -61,84 +82,92 @@ var Plugin = plugins.Plugin{
 var recLock sync.RWMutex
 
 // StaticRecords holds a MAC -> IP address mapping
-var StaticRecords map[string]net.IP
-
-// DHCPv6Records and DHCPv4Records are mappings between MAC addresses in
-// form of a string, to network configurations.
-var (
-	DHCPv6Records map[string]net.IP
-	DHCPv4Records map[string]net.IP
-)
+var StaticRecords map[string]netip.Addr
 
 // LoadDHCPv4Records loads the DHCPv4Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv4 address.
-func LoadDHCPv4Records(filename string) (map[string]net.IP, error) {
-	log.Infof("reading leases from %s", filename)
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	records := make(map[string]net.IP)
-	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
-		line := string(lineBytes)
-		if len(line) == 0 {
-			continue
-		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		tokens := strings.Fields(line)
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
-		}
-		hwaddr, err := net.ParseMAC(tokens[0])
-		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
-		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
-		}
-		records[hwaddr.String()] = ipaddr
-	}
-
-	return records, nil
+func LoadDHCPv4Records(filename string) (map[string]netip.Addr, error) {
+	return loadDHCPRecords(filename, 4, netip.Addr.Is4)
 }
 
 // LoadDHCPv6Records loads the DHCPv6Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IPv6 address.
-func LoadDHCPv6Records(filename string) (map[string]net.IP, error) {
-	log.Infof("reading leases from %s", filename)
-	data, err := os.ReadFile(filename)
+func LoadDHCPv6Records(filename string) (map[string]netip.Addr, error) {
+	return loadDHCPRecords(filename, 6, netip.Addr.Is6)
+}
+
+// loadDHCPRecords loads the MAC<->IP mappings with records stored on
+// the specified file. The records have to be one per line, a mac address and an
+// IP address.
+func loadDHCPRecords(filename string, protVer int, check func(netip.Addr) bool) (map[string]netip.Addr, error) {
+	log.Infof("reading IPv%d leases from %s", protVer, filename)
+	addresses := make(map[string]int)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	records := make(map[string]net.IP)
-	for _, lineBytes := range bytes.Split(data, []byte{'\n'}) {
-		line := string(lineBytes)
+	defer f.Close() //nolint:errcheck // read-only open()
+
+	records := make(map[string]netip.Addr)
+	scanner := bufio.NewScanner(f)
+	lineNo := 0
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		lineNo++
+		if comment := strings.IndexRune(line, '#'); comment >= 0 {
+			line = strings.TrimRightFunc(line[:comment], unicode.IsSpace)
+		}
 		if len(line) == 0 {
 			continue
 		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
+
 		tokens := strings.Fields(line)
 		if len(tokens) != 2 {
-			return nil, fmt.Errorf("malformed line, want 2 fields, got %d: %s", len(tokens), line)
+			return nil, fmt.Errorf("%s:%d malformed line, want 2 fields, got %d: %s", filename, lineNo, len(tokens), line)
 		}
 		hwaddr, err := net.ParseMAC(tokens[0])
 		if err != nil {
-			return nil, fmt.Errorf("malformed hardware address: %s", tokens[0])
+			return nil, fmt.Errorf("%s:%d malformed hardware address: %s", filename, lineNo, tokens[0])
 		}
-		ipaddr := net.ParseIP(tokens[1])
-		if ipaddr.To16() == nil || ipaddr.To4() != nil {
-			return nil, fmt.Errorf("expected an IPv6 address, got: %v", ipaddr)
+		ipaddr, err := netip.ParseAddr(tokens[1])
+		if err != nil {
+			return nil, fmt.Errorf("%s:%d expected an IPv%d address, got: %s", filename, lineNo, protVer, tokens[1])
 		}
+		if !check(ipaddr) {
+			return nil, fmt.Errorf("%s:%d expected an IPv%d address, got: %s", filename, lineNo, protVer, ipaddr)
+		}
+
+		// note that net.HardwareAddr.String() uses lowercase hexadecimal
+		// so there's no need to convert to lowercase
 		records[hwaddr.String()] = ipaddr
+		addresses[strings.ToLower(tokens[0])]++
+		addresses[strings.ToLower(tokens[1])]++
 	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	duplicatesWarning(addresses)
+
 	return records, nil
+}
+
+func duplicatesWarning(ipAddresses map[string]int) {
+	var duplicates []string
+	for ipAddress, count := range ipAddresses {
+		if count > 1 {
+			duplicates = append(duplicates, fmt.Sprintf("Address %s is in %d records", ipAddress, count))
+		}
+	}
+
+	sort.Strings(duplicates)
+
+	for _, warning := range duplicates {
+		log.Warning(warning)
+	}
 }
 
 // Handler6 handles DHCPv6 packets for the file plugin
@@ -175,7 +204,7 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		IaId: m.Options.OneIANA().IaId,
 		Options: dhcpv6.IdentityOptions{Options: []dhcpv6.Option{
 			&dhcpv6.OptIAAddress{
-				IPv6Addr:          ipaddr,
+				IPv6Addr:          ipaddr.AsSlice(),
 				PreferredLifetime: 3600 * time.Second,
 				ValidLifetime:     3600 * time.Second,
 			},
@@ -194,8 +223,8 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
 		return resp, false
 	}
-	resp.YourIPAddr = ipaddr
 	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
+	resp.YourIPAddr = ipaddr.AsSlice()
 	return resp, true
 }
 
@@ -260,7 +289,7 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 
 func loadFromFile(v6 bool, filename string) error {
 	var err error
-	var records map[string]net.IP
+	var records map[string]netip.Addr
 	var protver int
 	if v6 {
 		protver = 6
