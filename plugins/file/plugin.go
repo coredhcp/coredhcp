@@ -100,7 +100,7 @@ var LookupTypeSubscriberID = lookupType{"Subscriber-ID", 6}
 
 func LookupSubscriberID(s string) lookupValue { return lookupValue{LookupTypeSubscriberID, s} }
 
-var AllLookupTypes = []lookupType{LookupTypeCircuitID, LookupTypeRemoteID, LookupTypeSubscriberID}
+var AllLookupTypes = []lookupType{LookupTypeCircuitID, LookupTypeRemoteID, LookupTypeSubscriberID, LookupTypeMAC}
 
 type ipConfig struct {
 	ip      net.IP
@@ -130,15 +130,17 @@ func LoadDHCPv4Records(filename string) (map[lookupValue]ipConfig, error) {
 			continue
 		}
 
-		var reTypes map[*regexp.Regexp]lookupType = make(map[*regexp.Regexp]lookupType)
-		reTypes[regexp.MustCompile(`\s*(([0-9A-Fa-f]{2}:?){6})`)] = LookupTypeMAC
-		for _, lt := range AllLookupTypes {
-			re := regexp.MustCompile(`\s*` + lt.name + ":" + `"(.*?)"\s+`)
-			reTypes[re] = lt
-		}
-
 		var lookup lookupValue
-		for re, lt := range reTypes {
+		for _, lt := range AllLookupTypes {
+			var re *regexp.Regexp
+			if lt.name == "MAC" {
+				re = regexp.MustCompile(`\s*(([0-9A-Fa-f]{2}:?){6})`)
+			} else {
+				re = regexp.MustCompile(`\s*` + lt.name + ":" + `"(.*?)"\s+`)
+			}
+
+			fmt.Println(re, line)
+
 			if m := re.FindStringSubmatch(line); m != nil {
 				reBackslash := regexp.MustCompile(`\\(.)`)
 				lookup = lookupValue{lt, reBackslash.ReplaceAllString(m[1], "$1")}
