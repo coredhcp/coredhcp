@@ -27,7 +27,9 @@ func loadDB(path string) (*sql.DB, error) {
 // loadRecords loads the DHCPv6/v4 Records global map with records stored on
 // the specified file. The records have to be one per line, a mac address and an
 // IP address.
-func loadRecords(db *sql.DB) (map[string]*Record, error) {
+//
+// This is pluggable for test stubbing.
+var loadRecords = func(db *sql.DB) (map[string]*Record, error) {
 	rows, err := db.Query("select mac, ip, expiry, hostname from leases4")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query leases database: %w", err)
@@ -58,9 +60,9 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 	return records, nil
 }
 
-// saveIPAddress writes out a lease to storage
-func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	stmt, err := p.leasedb.Prepare(`insert or replace into leases4(mac, ip, expiry, hostname) values (?, ?, ?, ?)`)
+// saveIPAddress writes out a lease to storage. This is pluggable for test stubbing.
+var saveIPAddress = func(db *sql.DB, mac net.HardwareAddr, record *Record) error {
+	stmt, err := db.Prepare(`insert or replace into leases4(mac, ip, expiry, hostname) values (?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}

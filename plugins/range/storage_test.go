@@ -84,7 +84,7 @@ func TestWriteRecords(t *testing.T) {
 			// bug in testdata
 			panic(err)
 		}
-		if err := pl.saveIPAddress(hwaddr, rec.ip); err != nil {
+		if err := saveIPAddress(pl.leasedb, hwaddr, rec.ip); err != nil {
 			t.Errorf("Failed to save ip for %s: %v", hwaddr, err)
 		}
 		mapRec[hwaddr.String()] = &Record{IP: rec.ip.IP, expires: rec.ip.expires, hostname: rec.ip.hostname}
