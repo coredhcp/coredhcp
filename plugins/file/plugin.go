@@ -185,20 +185,19 @@ func Handler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 
 	mac, err := dhcpv6.ExtractMAC(req)
 	if err != nil {
-		log.Warningf("Could not find client MAC, passing")
+		log.Infof("Could not find client MAC for %s, passing", req)
 		return resp, false
 	}
-	log.Debugf("looking up an IP address for MAC %s", mac.String())
 
 	recLock.RLock()
 	defer recLock.RUnlock()
 
 	ipaddr, ok := StaticRecords[mac.String()]
 	if !ok {
-		log.Warningf("MAC address %s is unknown", mac.String())
+		log.Infof("MAC address %s is unknown", mac)
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, mac.String())
+	log.Infof("MAC address %s given IP address %s", mac, ipaddr)
 
 	resp.AddOption(&dhcpv6.OptIANA{
 		IaId: m.Options.OneIANA().IaId,
@@ -220,11 +219,11 @@ func Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
 
 	ipaddr, ok := StaticRecords[req.ClientHWAddr.String()]
 	if !ok {
-		log.Warningf("MAC address %s is unknown", req.ClientHWAddr.String())
+		log.Infof("MAC address %s is unknown", req.ClientHWAddr)
 		return resp, false
 	}
-	log.Debugf("found IP address %s for MAC %s", ipaddr, req.ClientHWAddr.String())
 	resp.YourIPAddr = ipaddr.AsSlice()
+	log.Infof("MAC address %s given IP address %s", req.ClientHWAddr, ipaddr)
 	return resp, true
 }
 
