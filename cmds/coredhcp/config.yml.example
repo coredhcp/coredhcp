@@ -77,6 +77,9 @@ server6:
         # The file format is one lease per line, "<hw address> <IPv6>"
         # When the 'autorefresh' argument is given, the plugin will try to refresh
         # the lease mapping during runtime whenever the lease file is updated.
+        # Caution! autorefresh is best effort. There are many file manipulations
+        # that will not be detected and race conditions that can lead to incorrect
+        # behavior (reading partial file updates)
         - file: "leases.txt"
 
         # dns adds information about available DNS resolvers to the responses

@@ -5,6 +5,8 @@
 package file
 
 import (
+	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -454,4 +456,61 @@ func TestSetupFile(t *testing.T) {
 		assert.Equal(t, 3, len(StaticRecords))
 		assert.Equal(t, StaticRecords["22:33:44:55:66:77"], netip.MustParseAddr("2001:db8::10:3"))
 	})
+}
+
+func TestAutorefreshAtomic(t *testing.T) {
+	ltestdir := t.TempDir()
+	tmp, err := os.CreateTemp(ltestdir, "leases_base")
+	require.NoError(t, err)
+	defer func() {
+		t.Helper()
+		// Only close the file at the end of the test to catch edge cases;
+		// for example inotify events on file delete are only thrown on the last fd being closed
+		// So an approach that just recreates a file watch on "remove" events doesn't work in this case
+		if tmp.Close() != nil || os.Remove(tmp.Name()) != nil {
+			t.Log("Error while closing/removing the tempfile. Was the file deleted in the test?")
+			t.Fail()
+		}
+	}()
+
+	_, _, err = setupFile(true, tmp.Name(), autoRefreshArg)
+	require.NoError(t, err)
+	require.Len(t, StaticRecords, 0)
+	for updateno := range 8 {
+		t.Run(fmt.Sprintf("autorefresh update %d", updateno), func(t *testing.T) {
+			func(t *testing.T) {
+				t.Helper()
+				atomtmp, err := os.CreateTemp(ltestdir, "leases_atom")
+				require.NoError(t, err)
+				for i := range updateno {
+					n, err := fmt.Fprintf(atomtmp, "02:%02x:22:33:44:55 2001:db8::%04d:%04d\n", i, updateno, i)
+					require.Equal(t, 17+1+19+1, n)
+					require.NoError(t, err)
+				}
+				require.NoError(t, atomtmp.Sync())
+				_, err = atomtmp.Seek(0, io.SeekStart)
+				require.NoError(t, err)
+				require.NoError(t, atomtmp.Close())
+				err = os.Rename(atomtmp.Name(), tmp.Name())
+				require.NoError(t, err)
+				require.FileExists(t, tmp.Name())
+			}(t)
+
+			// since the event is processed asynchronously, give it a little time
+			time.Sleep(time.Millisecond * 10)
+			updatenet := net.IPNet{
+				IP:   net.IP{0x20, 0x01, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(updateno), 0, 0},
+				Mask: net.CIDRMask(112, 128),
+			}
+			recLock.RLock()
+			assert.Len(t, StaticRecords, updateno)
+			for _, lease := range StaticRecords {
+				// Check that the correct leases are in the file as well as the right number (no partial update)
+				assert.Condition(t, func() bool {
+					return updatenet.Contains(lease.AsSlice())
+				})
+			}
+			recLock.RUnlock()
+		})
+	}
 }
