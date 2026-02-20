@@ -52,6 +52,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -265,14 +266,22 @@ func setupFile(v6 bool, args ...string) (handler.Handler6, handler.Handler4, err
 		}
 
 		// have file watcher watch over lease file
-		if err = watcher.Add(filename); err != nil {
+		if err = watcher.Add(filepath.Dir(filename)); err != nil {
 			return nil, nil, fmt.Errorf("failed to watch %s: %w", filename, err)
 		}
 
 		// very simple watcher on the lease file to trigger a refresh on any event
 		// on the file
 		go func() {
-			for range watcher.Events {
+			for evt := range watcher.Events {
+				if evt.Name != filename {
+					continue
+				}
+				if evt.Has(fsnotify.Remove) {
+					log.Warningf("lease file %s went away, not reloading", filename)
+					continue
+				}
+
 				err := loadFromFile(v6, filename)
 				if err != nil {
 					log.Warningf("failed to refresh from %s: %s", filename, err)
