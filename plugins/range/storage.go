@@ -11,6 +11,14 @@ import (
 	"net"
 
 	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+)
+
+const (
+	tableSchema        = `create table if not exists leases4 (mac string not null, ip string not null, expiry int, hostname string not null, primary key (mac, ip))`
+	loadRecordsQuery   = `select mac, ip, expiry, hostname from leases4`
+	saveRecordQuery    = `insert or replace into leases4(mac, ip, expiry, hostname) values (?, ?, ?, ?)`
+	deleteRecordsQuery = `delete from leases4 where mac = ? and ip = ?`
 )
 
 func loadDB(path string) (*sql.DB, error) {
@@ -18,7 +26,7 @@ func loadDB(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database (%T): %w", err, err)
 	}
-	if _, err := db.Exec("create table if not exists leases4 (mac string not null, ip string not null, expiry int, hostname string not null, primary key (mac, ip))"); err != nil {
+	if _, err := db.Exec(tableSchema); err != nil {
 		return nil, fmt.Errorf("table creation failed: %w", err)
 	}
 	return db, nil
@@ -28,14 +36,14 @@ func loadDB(path string) (*sql.DB, error) {
 // the specified file. The records have to be one per line, a mac address and an
 // IP address.
 func loadRecords(db *sql.DB) (map[string]*Record, error) {
-	rows, err := db.Query("select mac, ip, expiry, hostname from leases4")
+	rows, err := db.Query(loadRecordsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query leases database: %w", err)
 	}
 	defer rows.Close()
 	var (
 		mac, ip, hostname string
-		expiry            int
+		expiry            int64
 		records           = make(map[string]*Record)
 	)
 	for rows.Next() {
@@ -60,7 +68,7 @@ func loadRecords(db *sql.DB) (map[string]*Record, error) {
 
 // saveIPAddress writes out a lease to storage
 func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error {
-	stmt, err := p.leasedb.Prepare(`insert or replace into leases4(mac, ip, expiry, hostname) values (?, ?, ?, ?)`)
+	stmt, err := p.leasedb.Prepare(saveRecordQuery)
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}
@@ -78,7 +86,7 @@ func (p *PluginState) saveIPAddress(mac net.HardwareAddr, record *Record) error 
 
 // freeIPAddress removes a lease from storage
 func (p *PluginState) freeIPAddress(mac net.HardwareAddr, record *Record) error {
-	stmt, err := p.leasedb.Prepare(`delete from leases4 where mac = ? and ip = ?`)
+	stmt, err := p.leasedb.Prepare(deleteRecordsQuery)
 	if err != nil {
 		return fmt.Errorf("statement preparation failed: %w", err)
 	}

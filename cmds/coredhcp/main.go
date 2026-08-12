@@ -24,6 +24,7 @@ import (
 	pl_mtu "github.com/coredhcp/coredhcp/plugins/mtu"
 	pl_nbp "github.com/coredhcp/coredhcp/plugins/nbp"
 	pl_netmask "github.com/coredhcp/coredhcp/plugins/netmask"
+	pl_ntp "github.com/coredhcp/coredhcp/plugins/ntp"
 	pl_prefix "github.com/coredhcp/coredhcp/plugins/prefix"
 	pl_range "github.com/coredhcp/coredhcp/plugins/range"
 	pl_router "github.com/coredhcp/coredhcp/plugins/router"
@@ -70,6 +71,7 @@ var desiredPlugins = []*plugins.Plugin{
 	&pl_mtu.Plugin,
 	&pl_nbp.Plugin,
 	&pl_netmask.Plugin,
+	&pl_ntp.Plugin,
 	&pl_prefix.Plugin,
 	&pl_range.Plugin,
 	&pl_router.Plugin,

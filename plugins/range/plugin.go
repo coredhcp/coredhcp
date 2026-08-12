@@ -31,8 +31,8 @@ var Plugin = plugins.Plugin{
 
 // Record holds an IP lease record
 type Record struct {
-	IP      net.IP
-	expires int
+	IP       net.IP
+	expires  int64
 	hostname string
 }
 
@@ -61,6 +61,8 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		return p.handleRelease(req, resp, record)
 	}
 
+	endOfLease := time.Now().Add(p.LeaseTime)
+
 	if !ok {
 		// Allocating new address since there isn't one allocated
 		log.Printf("MAC address %s is new, leasing new IPv4 address", req.ClientHWAddr.String())
@@ -70,8 +72,8 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 			return nil, true
 		}
 		rec := Record{
-			IP:      ip.IP.To4(),
-			expires: int(time.Now().Add(p.LeaseTime).Unix()),
+			IP:       ip.IP.To4(),
+			expires:  endOfLease.Unix(),
 			hostname: hostname,
 		}
 		err = p.saveIPAddress(req.ClientHWAddr, &rec)
@@ -84,7 +86,7 @@ func (p *PluginState) Handler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) 
 		// Ensure we extend the existing lease at least past when the one we're giving expires
 		expiry := time.Unix(int64(record.expires), 0)
 		if expiry.Before(time.Now().Add(p.LeaseTime)) {
-			record.expires = int(time.Now().Add(p.LeaseTime).Round(time.Second).Unix())
+			record.expires = endOfLease.Round(time.Second).Unix()
 			record.hostname = hostname
 			err := p.saveIPAddress(req.ClientHWAddr, record)
 			if err != nil {

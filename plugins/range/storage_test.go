@@ -32,7 +32,7 @@ func testDBSetup() (*sql.DB, error) {
 	return db, nil
 }
 
-var expire = int(time.Date(2000, 01, 01, 00, 00, 00, 00, time.UTC).Unix())
+var expire = time.Date(2000, 01, 01, 00, 00, 00, 00, time.UTC).Unix()
 var records = []struct {
 	mac string
 	ip  *Record
@@ -60,7 +60,7 @@ func TestLoadRecords(t *testing.T) {
 	for _, rec := range records {
 		var (
 			ip, mac, hostname string
-			expiry            int
+			expiry            int64
 		)
 		if err := db.QueryRow("select mac, ip, expiry, hostname from leases4 where mac = ?", rec.mac).Scan(&mac, &ip, &expiry, &hostname); err != nil {
 			t.Fatalf("record not found for mac=%s: %v", rec.mac, err)
