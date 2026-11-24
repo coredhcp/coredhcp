@@ -28,6 +28,9 @@ server6:
 For more complex examples, like how to listen on specific interfaces and
 configure other plugins, see [config.yml.example](cmds/coredhcp/config.yml.example).
 
+For DHCPv4 boot options followed by address allocation, see the
+[NBP plugin's optional continuation mode](plugins/nbp/README.md).
+
 ## Build and run
 
 An example server is located under [cmds/coredhcp/](cmds/coredhcp/), so enter that

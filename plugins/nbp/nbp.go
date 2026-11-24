@@ -5,6 +5,8 @@
 // Package nbp implements handling of an NBP (Network Boot Program) using an
 // URL, e.g. http://[fe80::abcd:efff:fe12:3456]/my-nbp or tftp://10.0.0.1/my-nbp .
 // The NBP information is only added if it is requested by the client.
+// For DHCPv4, an optional second argument, "continue", allows later plugins
+// to run after adding boot options. Without it, NBP terminates the chain.
 //
 // Note that for DHCPv4, unless the URL is prefixed with a "http", "https" or
 // "ftp" scheme, the URL will be split into TFTP server name (option 66)
@@ -19,14 +21,13 @@
 //
 // Example usage:
 //
-// server6:
-//   - plugins:
-//     - nbp: http://[2001:db8:a::1]/nbp
+//	server6:
+//	  plugins:
+//	    - nbp: http://[2001:db8:a::1]/nbp
 //
-// server4:
-//   - plugins:
-//     - nbp: tftp://10.0.0.254/nbp
-//
+//	server4:
+//	  plugins:
+//	    - nbp: tftp://10.0.0.254/nbp continue
 package nbp
 
 import (
@@ -51,7 +52,6 @@ var Plugin = plugins.Plugin{
 
 var (
 	opt59, opt60 dhcpv6.Option
-	opt66, opt67 *dhcpv4.Option
 )
 
 func parseArgs(args ...string) (*url.URL, error) {
@@ -79,24 +79,41 @@ func setup6(args ...string) (handler.Handler6, error) {
 }
 
 func setup4(args ...string) (handler.Handler4, error) {
+	continueChain := false
+	if len(args) == 2 && args[1] == "continue" {
+		continueChain = true
+		args = args[:1]
+	} else if len(args) > 1 {
+		return nil, fmt.Errorf("expected a URL and optional 'continue' argument for DHCPv4 NBP")
+	}
 	u, err := parseArgs(args...)
 	if err != nil {
 		return nil, err
 	}
 
-	var otsn, obfn dhcpv4.Option
+	var opt66 *dhcpv4.Option
+	var opt67 dhcpv4.Option
 	switch u.Scheme {
 	case "http", "https", "ftp":
-		obfn = dhcpv4.OptBootFileName(u.String())
+		opt67 = dhcpv4.OptBootFileName(u.String())
 	default:
-		otsn = dhcpv4.OptTFTPServerName(u.Host)
-		obfn = dhcpv4.OptBootFileName(u.Path)
+		otsn := dhcpv4.OptTFTPServerName(u.Host)
+		opt67 = dhcpv4.OptBootFileName(u.Path)
 		opt66 = &otsn
 	}
 
-	opt67 = &obfn
 	log.Printf("loaded NBP plugin for DHCPv4.")
-	return nbpHandler4, nil
+	return func(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
+		if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && opt66 != nil {
+			resp.Options.Update(*opt66)
+			log.Debugf("Added NBP %s / %s to request", opt66, opt67)
+		}
+		if req.IsOptionRequested(dhcpv4.OptionBootfileName) {
+			resp.Options.Update(opt67)
+			log.Debugf("Added NBP %s to request", opt67)
+		}
+		return resp, !continueChain
+	}, nil
 }
 
 func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
@@ -122,21 +139,5 @@ func nbpHandler6(req, resp dhcpv6.DHCPv6) (dhcpv6.DHCPv6, bool) {
 		}
 	}
 	log.Debugf("Added NBP %s to request", opt59)
-	return resp, true
-}
-
-func nbpHandler4(req, resp *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, bool) {
-	if opt67 == nil {
-		// nothing to do
-		return resp, true
-	}
-	if req.IsOptionRequested(dhcpv4.OptionTFTPServerName) && opt66 != nil {
-		resp.Options.Update(*opt66)
-		log.Debugf("Added NBP %s / %s to request", opt66, opt67)
-	}
-	if req.IsOptionRequested(dhcpv4.OptionBootfileName) {
-		resp.Options.Update(*opt67)
-		log.Debugf("Added NBP %s to request", opt67)
-	}
 	return resp, true
 }
